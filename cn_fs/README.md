@@ -37,7 +37,7 @@ struct fs_header {
 ### Files and Directories
 Every directory and file is treated the exact same... as a file. However, the file system will be able to differentiate the two, as certain flags will be set in a stat struct to determine it. Directories are simply files that have entries in them to point to other sectors. Whether those sectors are files or not is dependent on the stat struct for them. Directories and files share the same stat struct:
 
-```
+```cpp
 struct cn_stat {
 	mode_t st_mode;          /* Tell whether it's a directory or a file */
 	off_t st_size;           /* Size of file */
