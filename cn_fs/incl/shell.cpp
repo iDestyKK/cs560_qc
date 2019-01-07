@@ -54,7 +54,7 @@ namespace cn_fs {
 
 		map<string, int (*)(vector<string>&)>::iterator ii;
 		vector<string> args;
-		cn_fs::util::explode(args, cmd);
+		cn_fs::util::explode(args, cmd, " \r\n\t");
 
 		ii = cmd_map.find(args[0]);
 

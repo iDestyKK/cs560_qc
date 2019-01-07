@@ -25,8 +25,8 @@ using namespace std;
 namespace cn_fs {
 	namespace util {
 		void log_error(const char*, ...);
-		void explode(vector<string>&, const char*);
-		bool __on_escape(char);
+		void explode(vector<string>&, const char*, const char*);
+		bool __on_escape(char, const char*, size_t);
 	}
 }
 

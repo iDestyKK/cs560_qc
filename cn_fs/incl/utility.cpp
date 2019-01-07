@@ -22,10 +22,12 @@ namespace cn_fs {
 		 * The results are stored in "dest".
 		 */
 
-		void explode(vector<string>& dest, const char* cmd) {
-			size_t cpos, il, ir, len;
+		void explode(vector<string>& dest, const char* cmd, const char* esc) {
+			size_t cpos, il, ir, len, esc_len;
 			bool in_quotes;
 			string tmp;
+
+			esc_len = sizeof(esc);
 
 			//Clean the destination vector
 			dest.clear();
@@ -38,7 +40,7 @@ namespace cn_fs {
 
 			for (; il < len; il++) {
 				//Skip blanks, newlines, and carriage returns
-				if (__on_escape(cmd[il]))
+				if (__on_escape(cmd[il], esc, len))
 					continue;
 
 				//We are at a string. Let's parse it.
@@ -60,7 +62,7 @@ namespace cn_fs {
 				else {
 					for (ir = il; ir < len; ir++) {
 						//Copy the string until an escape character is found
-						if (__on_escape(cmd[ir]))
+						if (__on_escape(cmd[ir], esc, len))
 							break;
 
 						tmp += cmd[ir];
@@ -82,8 +84,15 @@ namespace cn_fs {
 		 * excluding quotation marks.
 		 */
 
-		bool __on_escape(char c) {
-			return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
+		bool __on_escape(char c, const char* esc, size_t len) {
+			unsigned int i = 0;
+
+			for (; i < len; i++) {
+				if (c == esc[i])
+					return true;
+			}
+			return false;
+			//return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
 		}
 	}
 }
