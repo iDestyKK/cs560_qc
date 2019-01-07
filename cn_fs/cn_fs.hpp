@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <deque>
 
 //Handy
 #include "lib/handy/bstream.hpp"
@@ -119,6 +120,7 @@ namespace cn_fs {
 	}
 	namespace global {
 		extern uint32_t cur_dir;
+		extern deque<uint32_t> dir_path;
 		extern bstream* buf;
 		extern map<size_t, cn_fs::file> fd_dir;
 	}

@@ -95,7 +95,7 @@ namespace cn_fs {
 		if (!in_use)
 			return;
 
-		printf("removed\n");
+		//TODO: Manage any pointers... if any (none yet)
 	}
 
 	void file::setup(bstream& _buf, unsigned int lba) {
@@ -398,7 +398,7 @@ namespace cn_fs {
 
 			//Set the first unused sector to sector S.
 			header.first_unused_sector = 1;
-			header.root_sector = 0xFFFFFFFF;
+			header.root_sector = 1;
 
 			//TODO: Create a directory and then dump to that sector.
 
@@ -453,6 +453,7 @@ namespace cn_fs {
 
 			//Set the current directory to the root directory.
 			cn_fs::global::cur_dir = 1;
+			cn_fs::global::dir_path.push_back(1);
 
 			//Dump to disk
 			vector<string> a;
@@ -667,7 +668,7 @@ namespace cn_fs {
 
 			//Read from the current directory
 			cn_fs::file fp;
-			fp.setup(*cn_fs::global::buf, cn_fs::global:cur_dir);
+			fp.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
 
 			cn_fs::dir directory(fp.bytes);
 
@@ -758,18 +759,94 @@ namespace cn_fs {
 		 *     Change the current directory to "dirname".
 		 *
 		 * Example:
-		 *     cd ../../foo./bar
+		 *     cd ../../foo/bar
 		 *
 		 * CN_FS Syntax:
 		 *     cd dirname
 		 */
 
 		int cd(_ARGS& args) {
+			/*
 			cn_fs::util::log_error(
 				"[ERROR] %s has not been implemented yet.\n",
 				"cd"
 			);
 			return 1;
+			*/
+
+			//Argument Check
+			if (args.size() != 2) {
+				cn_fs::util::log_error(
+					"Usage: cd dirname\n"
+				);
+				return 1;
+			}
+
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			//Create a "savestate" that we can go back to if the command fails
+			deque<uint32_t> state_path = cn_fs::global::dir_path;
+			uint32_t state_block = cn_fs::global::cur_dir;
+
+			//Explode the path into separate parts
+			vector<string> paths;
+			cn_fs::util::explode(paths, args[1].c_str(), "/");
+
+			for (int i = 0; i < paths.size(); i++) {
+				printf("[DEBUG][CD] %s\n", paths[i].c_str());
+			}
+
+			for (int i = 0; i < paths.size(); i++) {
+				if (paths[i] == "..") {
+					//Go back a directory
+					cn_fs::global::dir_path.pop_back();
+
+					//Make it impossible to go past the root directory...
+					if (cn_fs::global::dir_path.size() == 0)
+						cn_fs::global::dir_path.push_back(head.root_sector);
+
+					cn_fs::global::cur_dir = cn_fs::global::dir_path.back();
+				}
+				else
+				if (paths[i] == "." || paths[i] == "") {
+					//...It's the same directory.
+					continue;
+				}
+				else {
+					//Read from the current directory
+					cn_fs::file fp;
+					fp.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+					cn_fs::dir directory(fp.bytes);
+
+					//Setup
+					map<string, unsigned int>::iterator ii;
+
+					//Find the directory and act on whether it exists or not
+					ii = directory.files.find(paths[i]);
+
+					if (ii == directory.files.end()) {
+						//We failed to find the file. Print an error.
+						cn_fs::util::log_error(
+							"[ERROR][CD] No such file or directory: %s\n",
+							args[1].c_str()
+						);
+
+						//Revert
+						cn_fs::global::dir_path = state_path;
+						cn_fs::global::cur_dir  = state_block;
+
+						//Return an error
+						return 1;
+					}
+
+					//Assume it is found and is in "ii"
+					cn_fs::global::cur_dir = ii->second;
+					cn_fs::global::dir_path.push_back(ii->second);
+				}
+			}
+
+			return 0;
 		}
 
 		/*
@@ -784,11 +861,30 @@ namespace cn_fs {
 		 */
 
 		int ls(_ARGS& args) {
+			/*
 			cn_fs::util::log_error(
 				"[ERROR] %s has not been implemented yet.\n",
 				"ls"
 			);
 			return 1;
+			*/
+			
+			//Read from the current directory
+			cn_fs::file fp;
+			fp.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+			cn_fs::dir directory(fp.bytes);
+
+			//Setup
+			map<string, unsigned int>::iterator ii;
+
+			//Just iterate through the directory's map and print out
+			for (
+				ii  = directory.files.begin();
+				ii != directory.files.end();
+				ii++
+			) {
+				printf("%s\n", ii->first.c_str());
+			}
 		}
 
 		/*
@@ -911,8 +1007,13 @@ namespace cn_fs {
 
 		// 1}}}
 	}
+
+	// ------------------------------------------------------------------------
+	// 5. Global Variables (cn_fs::global)                                 {{{1
+	// ------------------------------------------------------------------------
 	namespace global {
 		uint32_t cur_dir = 0;
+		deque<uint32_t> dir_path;
 		bstream* buf = NULL;
 		map<size_t, cn_fs::file> fd_dir;
 	}
