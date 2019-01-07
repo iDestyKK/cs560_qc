@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <time.h>
 
 #include <iostream>
 #include <string>
@@ -38,25 +40,60 @@ using namespace handy;
 #define SECT_SIZE 1024
 
 namespace cn_fs {
+	struct fs_header {
+		uint32_t first_unused_sector;
+		uint32_t root_sector;
+		uint32_t size;
+		uint32_t sect_size;
+		uint32_t S, D;
+	};
+
+	enum mode {
+		T_FILE,
+		T_DIR
+	};
+
+	struct fs_stat {
+		cn_fs::mode     st_mode; /* Tell whether it's a directory or a file */
+		uint32_t        st_size; /* Size of file */
+		struct timespec st_atim; /* Time of last access */
+		struct timespec st_mtim; /* Time of last modification */
+		struct timespec st_ctim; /* Time of last status change */
+	};
+
+	struct dir {
+		dir(bstream&);
+		void save();
+
+		bstream* buf;
+		map<string, unsigned int> files; /* name -> block ID */
+	};
+
 	struct file {
+		//Constructors
 		file();
 		~file();
 
-		void setup();
+		//Basic functions
+		void setup(bstream&, unsigned int);
+		void save();
 
+		//Variables
 		bool in_use;
 		size_t position;
-		size_t size;
 		size_t start_sector;
-	};
 
-	struct fs_header {
-		unsigned int first_unused_sector;
-		unsigned int root_sector;
-		unsigned int S, D;
+		cn_fs::fs_stat stat;
+		bstream bytes;
+		bstream* buf;
 	};
 
 	namespace func {
+		namespace internal {
+			void inject_file(bstream&, unsigned int, cn_fs::mode);
+			void resize_file(bstream&, unsigned int, uint32_t);
+		}
+
 		int mkfs(_ARGS&);
 		int open(_ARGS&);
 		int read(_ARGS&);
@@ -71,8 +108,18 @@ namespace cn_fs {
 		int tree(_ARGS&);
 		int import(_ARGS&);
 		int _export(_ARGS&);
+
+		//Extra?
+		//int lsof(_ARGS&);
+		//int stat(_ARGS&);
+		//int pwd(_ARGS&);
+		
+		//Custom
+		int dump(_ARGS&);
 	}
 	namespace global {
+		extern uint32_t cur_dir;
+		extern bstream* buf;
 		extern map<size_t, cn_fs::file> fd_dir;
 	}
 }

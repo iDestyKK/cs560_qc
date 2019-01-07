@@ -1,11 +1,94 @@
 #include "cn_fs.hpp"
 
 namespace cn_fs {
+	// ------------------------------------------------------------------------
+	// 1. Directory Struct                                                 {{{1
+	// ------------------------------------------------------------------------
+
+	/*
+	 * dir constructor
+	 *
+	 * Description:
+	 *     This struct is used only to store directory information. It takes an
+	 *     isolated bstream from a file struct and parses it.
+	 */
+
+	dir::dir(bstream& _buf) {
+		buf = &_buf;
+		uint32_t pos = 0,
+		         num,
+		         tmp_sz,
+		         tmp_sc;
+		string tmp;
+
+		//Get the number of files.
+		num = buf->at<uint32_t>(0);
+		pos += 4;
+
+		//Now, for each file, create the map structure.
+		for (int i = 0; i < num; i++) {
+			//Get what sector this file starts at.
+			tmp_sc = buf->at<uint32_t>(pos); pos += 4;
+
+			//Get the number of characters in the string.
+			tmp_sz = buf->at<uint32_t>(pos); pos += 4;
+
+			//Set up the string, and copy all characters over.
+			tmp.resize(tmp_sz);
+			for (int j = 0; j < tmp_sz; j++) {
+				tmp[j] = (*buf)[pos++];
+			}
+
+			//Push to the map
+			files.insert(make_pair<string, unsigned int>(
+				tmp,
+				tmp_sc
+			));
+		}
+	}
+
+	void dir::save() {
+		//Wipe out the buffer and recreate it.
+		buf->resize(4);
+		buf->at<uint32_t>(0) = files.size();
+		
+		uint32_t pos = 4;
+
+		//Start pushing files to the buffer.
+		map<string, unsigned int>::iterator ii;
+
+		for (ii = files.begin(); ii != files.end(); ii++) {
+			buf->resize(
+				buf->size() +            /* Initial Size */
+				(sizeof(uint32_t) * 2) + /* 2 uint32_t's */
+				ii->first.size()         /* File name */
+			);
+
+			//Push sector number
+			buf->at<uint32_t>(pos) = ii->second;
+			pos += sizeof(uint32_t);
+
+			//Push file name length
+			buf->at<uint32_t>(pos) = ii->first.size();
+			pos += sizeof(uint32_t);
+
+			//Push filename
+			memcpy(&buf->data()[pos], &ii->first[0], ii->first.size());
+			pos += ii->first.size();
+		}
+	}
+
+	// 1}}}
+
+	// ------------------------------------------------------------------------
+	// 2. File Struct                                                      {{{1
+	// ------------------------------------------------------------------------
+
 	file::file() {
 		in_use = false;
 		position = 0;
-		size = 0;
 		start_sector = 0;
+		buf = NULL;
 	}
 
 	file::~file() {
@@ -15,13 +98,244 @@ namespace cn_fs {
 		printf("removed\n");
 	}
 
-	void file::setup() {
+	void file::setup(bstream& _buf, unsigned int lba) {
 		in_use = true;
+		buf = &_buf;
+		start_sector = lba;
+		bool is_first_lba = true;
+
+		//Get information on the disk
+		cn_fs::fs_header &head = buf->at<cn_fs::fs_header>(0);
+		unsigned int     *lbas = buf->data<unsigned int>() + 6;
+
+		unsigned char* sect_bytes = buf->data<unsigned char>();
+		sect_bytes += head.sect_size * (head.S + lba - 1);
+
+		//Get the stat struct via reinterpret
+		stat = *(cn_fs::fs_stat *) &sect_bytes[0];
+
+		sect_bytes += sizeof(cn_fs::fs_stat);
+
+		//Construct "bytes"
+		bytes.resize(stat.st_size);
+		position = 0;
+		size_t batch_lim = head.sect_size - sizeof(cn_fs::fs_stat);
+		size_t cur_sec = lba;
+
+		while (position < stat.st_size) {
+			//Copy the bytes in.
+			memcpy(
+				&bytes[position],
+				&sect_bytes[0],
+				(position + batch_lim < stat.st_size)
+					? (batch_lim)
+					: (stat.st_size - position)
+			);
+
+			//Increment the position
+			position += batch_lim;
+
+			//Increment the LBA and bytes pointers
+			cur_sec = lbas[cur_sec - 1];
+
+			sect_bytes = buf->data<unsigned char>();
+			sect_bytes += head.sect_size * (head.S + cur_sec - 1);
+
+			//We are no longer in a sector that has a stat struct.
+			if (is_first_lba) {
+				is_first_lba = false;
+				batch_lim += sizeof(cn_fs::fs_stat);
+			}
+		}
 	}
 
+	void file::save() {
+		//Update the size
+		stat.st_size = bytes.size();
+
+		//Adjust the FAT to account for the new size.
+		cn_fs::func::internal::resize_file(
+			*buf,
+			start_sector,
+			stat.st_size
+		);
+
+		//Set up data on the FAT.
+		bool is_first_lba = true;
+
+		//Get information on the disk
+		cn_fs::fs_header &head = buf->at<cn_fs::fs_header>(0);
+		unsigned int     *lbas = buf->data<unsigned int>() + 6;
+
+		unsigned char* sect_bytes = buf->data<unsigned char>();
+		sect_bytes += head.sect_size * (head.S + start_sector - 1);
+
+		//Get the stat struct via reinterpret
+		stat = *(cn_fs::fs_stat *) &sect_bytes[0];
+
+		sect_bytes += sizeof(cn_fs::fs_stat);
+
+		//Construct "bytes"
+		position = 0;
+		size_t batch_lim = head.sect_size - sizeof(cn_fs::fs_stat);
+		size_t cur_sec = start_sector;
+
+		while (position < stat.st_size) {
+			//Copy the bytes in.
+			memcpy(
+				&sect_bytes[0],
+				&bytes[position],
+				(position + batch_lim < stat.st_size)
+					? (batch_lim)
+					: (stat.st_size - position)
+			);
+
+			//Increment the position
+			position += batch_lim;
+
+			//Increment the LBA and bytes pointers
+			cur_sec = lbas[cur_sec - 1];
+
+			sect_bytes = buf->data<unsigned char>();
+			sect_bytes += head.sect_size * (head.S + cur_sec - 1);
+
+			//We are no longer in a sector that has a stat struct.
+			if (is_first_lba) {
+				is_first_lba = false;
+				batch_lim += sizeof(cn_fs::fs_stat);
+			}
+		}
+	}
+
+	// 1}}}
+
 	namespace func {
+		// --------------------------------------------------------------------
+		// 3. Internal Functions                                           {{{1
+		// --------------------------------------------------------------------
+		
+		/* 
+		 * These functions are not intended to be used by the user. Instead,
+		 * they are helper functions that the user functions do use. They CAN
+		 * be called if an extension to CN_FS is done. Hence why they are not
+		 * private.
+		 */
+		
+		namespace internal {
+			/*
+			 * cn_fs::func::internal::inject_file                          {{{2
+			 *
+			 * Description:
+			 *     Injects a file of whatever type (T_DIR/T_FILE) and updates
+			 *     the File Allocation Table.
+			 */
+
+			void inject_file(bstream& buf, unsigned int lba, cn_fs::mode type) {
+				//Grab the header and LBAs
+				cn_fs::fs_header &head = buf.at<cn_fs::fs_header>(0);
+				unsigned int     *lbas = buf.data<unsigned int>() + 6;
+
+				//Update the next available LBA to the one in the array.
+				head.first_unused_sector = lbas[lba - 1];
+
+				//Set to 0 since (for now) it's the only sector for this file.
+				lbas[lba - 1] = 0;
+
+				//Jump to the LBA.
+				unsigned char* bytes = buf.data<unsigned char>();
+				bytes += head.sect_size * (head.S + lba - 1);
+
+				//Get the stat struct via reinterpret
+				cn_fs::fs_stat &st = *(cn_fs::fs_stat *) &bytes[0];
+
+				//Set up the stat
+				st.st_mode = type;
+				st.st_size = 0;
+
+				clock_gettime(CLOCK_REALTIME, &st.st_ctim);
+				st.st_atim = st.st_mtim = st.st_ctim;
+			}
+
+			/*
+			 * cn_fs::func::internal::resize_file                          {{{2
+			 *
+			 * Description:
+			 *     Does what the name implies. It resizes the file at a target
+			 *     LBA.
+			 */
+
+			void resize_file(bstream& buf, unsigned int lba, uint32_t nsz) {
+				//Grab header and LBAs
+				cn_fs::fs_header &head = buf.at<cn_fs::fs_header>(0);
+				unsigned int     *lbas = buf.data<unsigned int>() + 6;
+
+				//Grab the target LBA
+				unsigned char* bytes = buf.data<unsigned char>();
+				bytes += head.sect_size * (head.S + lba - 1);
+
+				//Grab the stat struct
+				cn_fs::fs_stat &st = *(cn_fs::fs_stat *) &bytes[0];
+				size_t osz = st.st_size,
+				       sect_count_new,
+				       sect_count_old;
+
+				//Go on and assume the new size.
+				st.st_size = nsz;
+
+				//Compensate for the stat struct being embedded in the file.
+				osz += sizeof(cn_fs::fs_stat);
+				nsz += sizeof(cn_fs::fs_stat);
+
+				//Compute how many sectors are needed to hold the data.
+				sect_count_old = 1 + ((osz - 1) / head.sect_size);
+				sect_count_new = 1 + ((nsz - 1) / head.sect_size);
+
+				if (sect_count_old == sect_count_new) {
+					//Well that sucks.
+					return;
+				}
+				else
+				if (sect_count_new > sect_count_old) {
+					//We're making new sectors. Skip to the last sector of the
+					//file.
+					unsigned int cs;
+					for (cs = lba; ; cs = lbas[cs - 1]) {
+						if (lbas[cs - 1] == cs - 1 || lbas[cs - 1] == 0)
+							break;
+					}
+
+					//Align the LBAs.
+					for (int i = sect_count_old; i < sect_count_new; i++) {
+						lbas[cs - 1] = head.first_unused_sector;
+						head.first_unused_sector = lbas[lbas[cs - 1] - 1];
+						cs = lbas[cs - 1];
+					}
+
+					//Set the last sector's "next" to 0.
+					lbas[cs - 1] = 0;
+				}
+				else {
+					//We are losing sectors. Give them back to the LBA.
+					//TODO: Actually do this shit...
+				}
+			}
+		}
+
+		// 1}}}
+
+		// --------------------------------------------------------------------
+		// 4. Shell Command Implementation                                 {{{1
+		// --------------------------------------------------------------------
+		
 		/*
-		 * cn_fs::func::mkfs
+		 * These are the actual commands that can be run by the user. They are
+		 * powered by function pointers that are set up in both shell.cpp and
+		 * main.cpp. To add more, simply add more functions and add them to the
+		 * command map.
+		 */
+
+		/*
+		 * cn_fs::func::mkfs                                               {{{2
 		 * 
 		 * Description:
 		 *     Formats the disk for use with CN_FS.
@@ -75,10 +389,12 @@ namespace cn_fs {
 			//Make a new bstream and format it.
 			//Have "BST_ZERO" so all empty sectors are memset to 0. This makes
 			//it better for compression programs like GZ, BZ2, and XZ.
-			bstream buffer(disk_size, BST_READ | BST_WRITE | BST_ZERO);
+			cn_fs::global::buf =
+				new bstream(disk_size, BST_READ | BST_WRITE | BST_ZERO);
 
 			//Format the "disk" to be ready for use.
-			cn_fs::fs_header& header = buffer.at<cn_fs::fs_header>(0);
+			cn_fs::fs_header& header =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
 
 			//Set the first unused sector to sector S.
 			header.first_unused_sector = 1;
@@ -88,21 +404,28 @@ namespace cn_fs {
 
 			//Compute D and S.
 			unsigned int N, D, S; //Nintendo DS
-			N = ((disk_size / sect_size) + 4) * sizeof(unsigned int);
+			N = ((disk_size / sect_size) + 6) * sizeof(unsigned int);
 			S = 1 + ((N - 1) / sect_size);
-			D = (N / sizeof(unsigned int)) - 4 - S;
+			D = (N / sizeof(unsigned int)) - 6 - S;
 
 			header.S = S;
 			header.D = D;
 
+			header.size      = disk_size;
+			header.sect_size = sect_size;
+
 			//Set up the sector pointers... in-place.
 			unsigned int* sec_ptr =
-				buffer.data<unsigned int>() + 2;
+				cn_fs::global::buf->data<unsigned int>() + 6;
 
+			//Assign the "next" sector. Last sector has "0"
 			for (int i = 0; i < D; i++)
-				sec_ptr[i] = i + 1;
+				sec_ptr[i] = (i == D - 1)
+					? 0
+					: i + 2;
 
 			//...And shuffle it (Fisher-Yates)
+			/*
 			for (int i = D - 1; i > 0; i--) {
 				int j, k;
 				j = rand() % (i + 1);
@@ -112,19 +435,35 @@ namespace cn_fs {
 				sec_ptr[i] = sec_ptr[j];
 				sec_ptr[j] = k;
 			}
+			*/
+
+			//Create the root directory.
+			cn_fs::func::internal::inject_file(
+				*cn_fs::global::buf,
+				1,
+				cn_fs::T_DIR
+			);
+
+			//Write a "00 00 00 00" to it to tell that there are no files.
+			cn_fs::func::internal::resize_file(
+				*cn_fs::global::buf,
+				1,
+				sizeof(uint32_t)
+			);
+
+			//Set the current directory to the root directory.
+			cn_fs::global::cur_dir = 1;
 
 			//Dump to disk
-			FILE *fp;
-			fp = fopen("disk.cndisk", "wb");
-			fwrite(buffer.data(), sizeof(char), disk_size, fp);
-			fclose(fp);
+			vector<string> a;
+			cn_fs::func::dump(a);
 
 			//Return success code.
 			return 0;
 		}
 
 		/*
-		 * cn_fs::func::open
+		 * cn_fs::func::open                                               {{{2
 		 * 
 		 * Description:
 		 *     Open a file with the given "flag", return a file descriptor "fd"
@@ -156,7 +495,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::read
+		 * cn_fs::func::read                                               {{{2
 		 * 
 		 * Description:
 		 *     Read "size" bytes from the file associated with fd, from the
@@ -181,7 +520,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::write
+		 * cn_fs::func::write                                              {{{2
 		 * 
 		 * Description:
 		 *     Write "string" into file associated with "fd", from current file
@@ -206,7 +545,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::seek
+		 * cn_fs::func::seek                                               {{{2
 		 * 
 		 * Description:
 		 *     Move the current file offset associated with "fd" to a new file
@@ -251,7 +590,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::close
+		 * cn_fs::func::close                                              {{{2
 		 * 
 		 * Description:
 		 *     Close the file associated with "fd".
@@ -292,7 +631,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::mkdir
+		 * cn_fs::func::mkdir                                              {{{2
 		 * 
 		 * Description:
 		 *     Create a sub-directory "dirname" under the current directory.
@@ -305,15 +644,94 @@ namespace cn_fs {
 		 */
 
 		int mkdir(_ARGS& args) {
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"mkdir"
+			//Grab the header and LBA list
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			unsigned int *lbas =
+				cn_fs::global::buf->data<unsigned int>() + 6;
+			
+			uint32_t target_sector = head.first_unused_sector;
+			uint32_t next_new_sect = lbas[target_sector - 1];
+
+			/*
+			 * CHECK 1 - Available sectors for a new directory
+			 */
+
+			if (target_sector == 0) {
+				cn_fs::util::log_error(
+					"[ERROR][MKDIR] Not enough space on the disk.\n"
+				);
+				return 1;
+			}
+
+			//Read from the current directory
+			cn_fs::file fp;
+			fp.setup(*cn_fs::global::buf, cn_fs::global:cur_dir);
+
+			cn_fs::dir directory(fp.bytes);
+
+			/*
+			 * CHECK 2 - If the allocated bytes goes over SECT_SIZE and there's
+			 *           no free sectors.
+			 */
+			
+			//Predict the size after writing.
+			size_t predicted_size = fp.bytes.size() % head.sect_size;
+			predicted_size += sizeof(uint32_t) * 2;
+			predicted_size += args[1].size();
+
+			//If the first sector is the only one allocated, consider fs_stat.
+			if (fp.bytes.size() < head.sect_size - sizeof(cn_fs::fs_stat))
+				predicted_size += sizeof(cn_fs::fs_stat);
+
+			//If we have to use another sector for this directory and there is
+			//no more sectors to put the new directory...
+			if (
+				lbas[target_sector - 1] == 0 &&
+				predicted_size > head.sect_size
+			) {
+				cn_fs::util::log_error(
+					"[ERROR][MKDIR] Not enough space on the disk.\n"
+				);
+				return 1;
+			}
+
+			//Inject a directory.
+			directory.files.insert(make_pair<string, unsigned int>(
+				args[1],
+				target_sector
+			));
+
+			//Create the root directory.
+			cn_fs::func::internal::inject_file(
+				*cn_fs::global::buf,
+				target_sector,
+				cn_fs::T_DIR
 			);
-			return 1;
+
+			//Write a "00 00 00 00" to it to tell that there are no files.
+			cn_fs::func::internal::resize_file(
+				*cn_fs::global::buf,
+				target_sector,
+				sizeof(uint32_t)
+			);
+
+			//Update the first unused sector
+			head.first_unused_sector = next_new_sect;
+
+			//Commit the changes back
+			directory.save();
+			fp.save();
+
+			//Dump to disk
+			//TODO: Stream this
+			vector<string> a;
+			cn_fs::func::dump(a);
 		}
 
 		/*
-		 * cn_fs::func::rmdir
+		 * cn_fs::func::rmdir                                              {{{2
 		 * 
 		 * Description:
 		 *     Remove the sub-directory "dirname".
@@ -334,7 +752,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::cd
+		 * cn_fs::func::cd                                                 {{{2
 		 * 
 		 * Description:
 		 *     Change the current directory to "dirname".
@@ -355,7 +773,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::ls
+		 * cn_fs::func::ls                                                 {{{2
 		 * 
 		 * Description:
 		 *     Show the content of the current directory. No parameters need to
@@ -374,7 +792,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::cat
+		 * cn_fs::func::cat                                                {{{2
 		 * 
 		 * Description:
 		 *     Show the content of the file.
@@ -395,7 +813,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::tree
+		 * cn_fs::func::tree                                               {{{2
 		 * 
 		 * Description:
 		 *     List the contents of the current directory in a tree-format. For
@@ -417,7 +835,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::import
+		 * cn_fs::func::import                                             {{{2
 		 * 
 		 * Description:
 		 *     Import a file from the host machine file system to the current
@@ -439,7 +857,7 @@ namespace cn_fs {
 		}
 
 		/*
-		 * cn_fs::func::_export
+		 * cn_fs::func::_export                                            {{{2
 		 * 
 		 * Description:
 		 *     Export a file from the current directory to the host machine
@@ -459,8 +877,43 @@ namespace cn_fs {
 			);
 			return 1;
 		}
+
+		/*
+		 * cn_fs::func::dump
+		 *
+		 * Description:
+		 *     Dumps the entire file system to disk. Use for debugging purposes
+		 *     only.
+		 *
+		 * Example:
+		 *     dump
+		 *
+		 * CN_FS Syntax:
+		 *     dump
+		 */
+
+		int dump(_ARGS& args) {
+			//Get header information.
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			//Dump all bytes to disk.
+			FILE *fp;
+			fp = fopen("disk.cndisk", "wb");
+			fwrite(
+				&cn_fs::global::buf->data()[0],
+				sizeof(char),
+				head.size,
+				fp
+			);
+			fclose(fp);
+		}
+
+		// 1}}}
 	}
 	namespace global {
+		uint32_t cur_dir = 0;
+		bstream* buf = NULL;
 		map<size_t, cn_fs::file> fd_dir;
 	}
 }
