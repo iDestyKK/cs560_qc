@@ -44,6 +44,8 @@ int main() {
 	sh.command_add("import", cn_fs::func::import );
 	sh.command_add("export", cn_fs::func::_export);
 
+	sh.command_add("dump"  , cn_fs::func::dump   );
+
 	//Run the shell and interpreter. Exit when done.
 	return sh.run();
 }
