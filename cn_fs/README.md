@@ -48,3 +48,14 @@ struct cn_stat {
 ```
 
 Since the file system is broken up into blocks. Files must know where the next sector in the disk is located. This is done via the first "S" sectors, where it will explicitly point to which sector goes next.
+
+### Directory Structure
+Directories are treated as files, as they should. The format of a directory is as follows:
+```
+4 bytes - number of files
+
+Repeat N times (where N is the number of files)
+	4 bytes - sector num
+	4 bytes - file name length
+	char[] - file name
+```
