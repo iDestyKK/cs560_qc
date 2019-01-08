@@ -6,16 +6,16 @@
 
 ## Function Implementation Progress
 ```diff
-- mkfs
++ mkfs
 - open
 - read
 - write
 - seek
 - close
-- mkdir
-- rmdir
-- cd
-- ls
++ mkdir
++ rmdir
++ cd
++ ls
 - cat
 - tree
 - import
