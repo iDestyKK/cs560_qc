@@ -316,8 +316,79 @@ namespace cn_fs {
 				}
 				else {
 					//We are losing sectors. Give them back to the LBA.
-					//TODO: Actually do this shit...
+					unsigned int cs;
+					deque<unsigned int> sectors;
+					
+					//Go to the last sector the file owns
+					for (cs = lba; ; cs = lbas[cs - 1]) {
+						sectors.push_back(cs);
+						if (lbas[cs - 1] == cs - 1 || lbas[cs - 1] == 0)
+							break;
+					}
+
+					//Give the sectors back to the LBA
+					while (sectors.size() != sect_count_new) {
+						lbas[sectors.back() - 1] = head.first_unused_sector;
+						head.first_unused_sector = sectors.back();
+						sectors.pop_back();
+					}
+
+					//Set the new last sector's target LBA to 0
+					lbas[sectors.back() - 1] = 0;
 				}
+			}
+
+			/*
+			 * cn_fs::func::internal::remove_file                          {{{2
+			 *
+			 * Description:
+			 *     Does what the name implies. Removes a file by its LBA. Also
+			 *     removes all sectors it owns and allows the LBA to write to
+			 *     them again.
+			 */
+
+			void remove_file(bstream& buf, unsigned int lba) {
+				//Get buffer information
+				cn_fs::fs_header &head = buf.at<cn_fs::fs_header>(0);
+				unsigned int     *lbas = buf.data<unsigned int>() + 6;
+
+				//Grab the stat of this file
+				cn_fs::fs_stat *s = &buf.at<cn_fs::fs_stat>(
+					head.sect_size * lba
+				);
+
+				//If it is a directory then we must go and delete all of those
+				//files as well.
+				if (s->st_mode == cn_fs::T_DIR) {
+					//Go on and load up that directory.
+					cn_fs::file fp;
+					fp.setup(*cn_fs::global::buf, lba);
+
+					cn_fs::dir directory(fp.bytes);
+
+					//Go through every file and delete it... Recursively
+					map<string, unsigned int>::iterator ii;
+					for (
+						ii = directory.files.begin();
+						ii != directory.files.end();
+						ii++
+					) {
+						cn_fs::func::internal::remove_file(
+							buf,
+							ii->second
+						);
+					}
+				}
+
+				//Cheat. Resize the file to 0 and then change the LBA to be
+				//the header's first unallocated sector.
+				cn_fs::func::internal::resize_file(buf, lba, 0);
+
+				//Rearrange pointers.
+				lbas[lba - 1] = head.first_unused_sector;
+				head.first_unused_sector = lba;
+
+				printf("Removed LBA: %d\n", lba);
 			}
 		}
 
@@ -653,7 +724,6 @@ namespace cn_fs {
 				cn_fs::global::buf->data<unsigned int>() + 6;
 			
 			uint32_t target_sector = head.first_unused_sector;
-			uint32_t next_new_sect = lbas[target_sector - 1];
 
 			/*
 			 * CHECK 1 - Available sectors for a new directory
@@ -665,6 +735,8 @@ namespace cn_fs {
 				);
 				return 1;
 			}
+
+			uint32_t next_new_sect = lbas[target_sector - 1];
 
 			//Read from the current directory
 			cn_fs::file fp;
@@ -745,11 +817,86 @@ namespace cn_fs {
 		 */
 
 		int rmdir(_ARGS& args) {
+			/*
 			cn_fs::util::log_error(
 				"[ERROR] %s has not been implemented yet.\n",
 				"rmdir"
 			);
 			return 1;
+			*/
+			if (args.size() < 2) {
+				cn_fs::util::log_error(
+					"Usage: rmdir dirname [dirname [dirname [...]]]\n"
+				);
+				return 1;
+			}
+
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			//Read from the current directory
+			cn_fs::file fp;
+			fp.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+
+			cn_fs::dir directory(fp.bytes);
+
+			cn_fs::fs_stat *s;
+
+			//Check if the directory exists. If it does, remove it.
+			map<string, unsigned int>::iterator ii;
+			ii = directory.files.find(args[1]);
+
+			if (ii != directory.files.end()) {
+				//Jump to the stat struct for the file.
+				s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
+					head.sect_size * ii->second
+				);
+
+				//Check if it is a directory
+				if (s->st_mode == cn_fs::T_DIR) {
+					//Yup, it's a directory
+
+					//NOTE: This function is recursive. If the directory has
+					//any files or directories in it, it will delete them
+					//first.
+					
+					cn_fs::func::internal::remove_file(
+						*cn_fs::global::buf,
+						ii->second
+					);
+
+					//Erase from the map
+					directory.files.erase(ii);
+				}
+				else {
+					//Nope. Not a directory. It's a file.
+					cn_fs::util::log_error(
+						"%s: failed to remove '%s': %s\n",
+						"rmdir",
+						args[1].c_str(),
+						"Not a directory"
+					);
+					return 1;
+				}
+			}
+			else {
+				cn_fs::util::log_error(
+					"%s: failed to remove '%s': %s\n",
+					"rmdir",
+					args[1].c_str(),
+					"No such file or directory"
+				);
+				return 1;
+			}
+
+			//Commit the changes back
+			directory.save();
+			fp.save();
+
+			//Dump to disk
+			//TODO: Stream this
+			vector<string> a;
+			cn_fs::func::dump(a);
 		}
 
 		/*

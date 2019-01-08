@@ -93,6 +93,7 @@ namespace cn_fs {
 		namespace internal {
 			void inject_file(bstream&, unsigned int, cn_fs::mode);
 			void resize_file(bstream&, unsigned int, uint32_t);
+			void remove_file(bstream&, unsigned int);
 		}
 
 		int mkfs(_ARGS&);
