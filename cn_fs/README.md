@@ -5,6 +5,8 @@
 
 
 ## Function Implementation Progress
+
+### Assignment Stated
 ```diff
 + mkfs
 - open
@@ -20,6 +22,14 @@
 - tree
 - import
 - export
+```
+
+### Extra Functions
+```diff
+- lsof
+- stat
+- pwd
++ dump
 ```
 
 ## How it works
