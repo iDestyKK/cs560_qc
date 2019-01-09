@@ -21,7 +21,7 @@
 + cat
 - tree
 + import
-- export
++ export
 ```
 
 ### Extra Functions
