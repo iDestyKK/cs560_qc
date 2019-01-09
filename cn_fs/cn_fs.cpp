@@ -1236,6 +1236,7 @@ namespace cn_fs {
 
 			//Did it pass the checks? Ok, now we can import the file.
 			//Update the FAT to have the new file.
+			//TODO: Check if file already exists (overwrite or error?)
 			start_sector = head.first_unused_sector;
 
 			cn_fs::func::internal::inject_file(
@@ -1279,11 +1280,62 @@ namespace cn_fs {
 		 */
 
 		int _export(_ARGS& args) {
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"export"
-			);
-			return 1;
+			//Argument Check
+			if (args.size() != 3) {
+				cn_fs::util::log_error(
+					"Usage: export srcname destname\n"
+				);
+				return 1;
+			}
+
+			//Open the directory and see if we can even open the file.
+			cn_fs::file fp_d;
+			fp_d.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+
+			cn_fs::dir directory(fp_d.bytes);
+
+			//Find the file and act accordingly
+			map<string, unsigned int>::iterator ii;
+			ii = directory.files.find(args[1]);
+
+			if (ii == directory.files.end()) {
+				//Yeah that file doesn't exist.
+				cn_fs::util::log_error(
+					"[EXPORT][FATAL] %s: No such file or directory\n",
+					args[1].c_str()
+				);
+				return 1;
+			}
+			else {
+				//Alright. Load that file up and export it.
+				//WARNING: This is destructive. It'll truncate an existing file
+				//         if that is the specified destination.
+				FILE *fp;
+				fp = fopen(args[2].c_str(), "wb");
+
+				if (fp == NULL) {
+					//This time, let's get the error from the OS.
+					perror("[EXPORT][FATAL] Failed to export file");
+					return 1;
+				}
+
+				//Assume it can be done.
+				cn_fs::file fp_buf;
+				fp_buf.setup(*cn_fs::global::buf, ii->second);
+
+				//Dump all bytes into the file.
+				fwrite(
+					&fp_buf.bytes.data()[0],
+					sizeof(char),
+					fp_buf.bytes.size(),
+					fp
+				);
+
+				//Have a nice day
+				fclose(fp);
+			}
+
+			return 0;
 		}
 
 		/*
