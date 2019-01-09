@@ -18,9 +18,9 @@
 + rmdir
 + cd
 + ls
-- cat
++ cat
 - tree
-- import
++ import
 - export
 ```
 
