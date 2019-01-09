@@ -27,7 +27,7 @@ namespace cn_fs {
 			bool in_quotes;
 			string tmp;
 
-			esc_len = sizeof(esc);
+			esc_len = strlen(esc);
 
 			//Clean the destination vector
 			dest.clear();
@@ -40,7 +40,7 @@ namespace cn_fs {
 
 			for (; il < len; il++) {
 				//Skip blanks, newlines, and carriage returns
-				if (__on_escape(cmd[il], esc, len))
+				if (__on_escape(cmd[il], esc, esc_len))
 					continue;
 
 				//We are at a string. Let's parse it.
@@ -62,7 +62,7 @@ namespace cn_fs {
 				else {
 					for (ir = il; ir < len; ir++) {
 						//Copy the string until an escape character is found
-						if (__on_escape(cmd[ir], esc, len))
+						if (__on_escape(cmd[ir], esc, esc_len))
 							break;
 
 						tmp += cmd[ir];
