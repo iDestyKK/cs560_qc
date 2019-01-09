@@ -26,6 +26,7 @@
 
 //Handy
 #include "lib/handy/bstream.hpp"
+#include "lib/handy/file.hpp"
 
 //Utilities
 #include "incl/utility.hpp"

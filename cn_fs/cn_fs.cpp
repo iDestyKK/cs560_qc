@@ -817,13 +817,6 @@ namespace cn_fs {
 		 */
 
 		int rmdir(_ARGS& args) {
-			/*
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"rmdir"
-			);
-			return 1;
-			*/
 			if (args.size() < 2) {
 				cn_fs::util::log_error(
 					"Usage: rmdir dirname [dirname [dirname [...]]]\n"
@@ -1048,11 +1041,65 @@ namespace cn_fs {
 		 */
 
 		int cat(_ARGS& args) {
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"cat"
-			);
-			return 1;
+			//Argument check
+			if (args.size() != 2) {
+				cn_fs::util::log_error("Usage: cat filename\n");
+				return 1;
+			}
+
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			//Read from the current directory
+			cn_fs::file fp;
+			fp.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+
+			cn_fs::dir directory(fp.bytes);
+
+			cn_fs::fs_stat *s;
+
+			//Check if the directory exists. If it does, remove it.
+			map<string, unsigned int>::iterator ii;
+			ii = directory.files.find(args[1]);
+
+			if (ii != directory.files.end()) {
+				//Jump to the stat struct for the file.
+				s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
+					head.sect_size * ii->second
+				);
+
+				//Act based on if it is a directory or a file
+				if (s->st_mode == cn_fs::T_DIR) {
+					//If it is a directory, we will match zsh's output.
+					cn_fs::util::log_error(
+						"[CAT] %s: Is a directory\n",
+						args[1].c_str()
+					);
+
+					//zsh returns 1 so we'll match it.
+					return 1;
+				}
+				else {
+					//It's a file. Let's do this.
+					cn_fs::file cat_fp;
+					cat_fp.setup(*cn_fs::global::buf, ii->second);
+
+					//Print out all bytes. This is totally unsafe.
+					for (int i = 0; i < cat_fp.bytes.size(); i++) {
+						printf("%c", cat_fp.bytes[i]);
+					}
+				}
+			}
+			else {
+				//File doesn't exist.
+				cn_fs::util::log_error(
+					"[CAT][FATAL] %s: No such file or directory\n",
+					args[1].c_str()
+				);
+				return 1;
+			}
+
+			return 0;
 		}
 
 		/*
@@ -1092,11 +1139,129 @@ namespace cn_fs {
 		 */
 
 		int import(_ARGS& args) {
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"import"
+			//Argument check
+			if (args.size() != 3) {
+				cn_fs::util::log_error(
+					"Usage: import srcname destname\n"
+				);
+				return 1;
+			}
+
+			size_t start_sector;
+
+			//Check if the file exists.
+			const char* c_path = args[1].c_str();
+
+			if (!handy::file::file_exists(c_path)) {
+				cn_fs::util::log_error(
+					"[IMPORT][FATAL] File '%s' does not exist.\n",
+					c_path
+				);
+				return 1;
+			}
+
+			/*
+			 * CHECK 1: Check if there is a free sector.
+			 */
+
+			cn_fs::fs_header &head =
+				cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+			unsigned int *lbas =
+				cn_fs::global::buf->data<unsigned int>() + 6;
+
+			if (head.first_unused_sector == 0) {
+				cn_fs::util::log_error(
+					"[IMPORT][FATAL] Not enough space on the disk.\n"
+				);
+				return 1;
+			}
+
+			/*
+			 * CHECK 2: Check if the file can fit on the disk.
+			 */
+
+			size_t sector_chk, sector_count, predicted_size, predicted_count;
+			bool dir_account;
+
+			//Open the directory. We need to see if adding the new file will
+			//also increase the directory to allocate a new sector.
+			cn_fs::file fp_d;
+			fp_d.setup(*cn_fs::global::buf, cn_fs::global::cur_dir);
+
+			cn_fs::dir directory(fp_d.bytes);
+
+			//"Accurately" predict the size of the directory after adding name
+			predicted_size = fp_d.bytes.size() % head.sect_size;
+			predicted_size += sizeof(uint32_t) * 2;
+			predicted_size += args[2].size();
+
+			//Add the header if it only takes one sector
+			if (fp_d.bytes.size() < head.sect_size - sizeof(cn_fs::fs_stat))
+				predicted_size += sizeof(cn_fs::fs_stat);
+
+			//Fantastic idea.
+			dir_account = predicted_size > head.sect_size;
+
+			//Compute how many sectors are needed to store this file.
+			sector_chk = head.first_unused_sector;
+
+			//Skip ahead if we need more space for the directory
+			if (dir_account)
+				sector_chk = lbas[sector_chk - 1];
+
+			sector_count = 0;
+
+			predicted_size = sizeof(cn_fs::fs_header);
+			predicted_size += handy::file::get_file_size(args[1].c_str());
+
+			predicted_count = 1 + ((predicted_size - 1) / head.sect_size);
+
+			//Go through N free sectors in the free list. If at least N exist
+			//then we can insert the file in.
+			for (int i = 0; i < predicted_count; i++) {
+				sector_count++;
+				if (lbas[sector_chk - 1] == 0)
+					break;
+
+				sector_chk = lbas[sector_chk - 1];
+			}
+
+			if (sector_count != predicted_count) {
+				cn_fs::util::log_error(
+					"[IMPORT][FATAL] Not enough space on the disk.\n"
+				);
+				return 1;
+			}
+
+			//Did it pass the checks? Ok, now we can import the file.
+			//Update the FAT to have the new file.
+			start_sector = head.first_unused_sector;
+
+			cn_fs::func::internal::inject_file(
+				*cn_fs::global::buf,
+				start_sector,
+				cn_fs::T_FILE
 			);
-			return 1;
+
+			//Import the file
+			cn_fs::file fp;
+			fp.setup(*cn_fs::global::buf, start_sector);
+
+			fp.bytes.append_file(c_path);
+
+			//Commit the bytes to the disk.
+			fp.save();
+
+			//Update the directory to include this file.
+			directory.files.insert(make_pair<string, unsigned int>(
+				args[2],
+				start_sector
+			));
+
+			//Commit those changes as well
+			directory.save();
+			fp_d.save();
 		}
 
 		/*
