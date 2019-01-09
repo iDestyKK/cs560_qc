@@ -7,7 +7,7 @@ INCL_D  = incl
 
 all: $(EXEC)
 
-cn_fs: main.cpp cn_fs.cpp $(HANDY_D)/bstream.cpp $(INCL_D)/shell.cpp $(INCL_D)/utility.cpp
+cn_fs: main.cpp cn_fs.cpp $(HANDY_D)/bstream.cpp $(HANDY_D)/file.cpp $(INCL_D)/shell.cpp $(INCL_D)/utility.cpp
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
