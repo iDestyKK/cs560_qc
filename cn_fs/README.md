@@ -19,7 +19,7 @@
 + cd
 + ls
 + cat
-- tree
++ tree
 + import
 + export
 ```
