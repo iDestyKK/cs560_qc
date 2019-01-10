@@ -390,6 +390,128 @@ namespace cn_fs {
 
 				printf("Removed LBA: %d\n", lba);
 			}
+
+			/*
+			 * cn_fs::func::internal::tree_print                           {{{2
+			 *
+			 * Description:
+			 *     Prints the current directory in a "tree" format. If there
+			 *     are directories, it will recursively call itself on those
+			 *     directories.
+			 */
+
+			void tree_print(unsigned int lba) {
+				cn_fs::file fp;
+				cn_fs::fs_stat *s;
+
+				fp.setup(*cn_fs::global::buf, lba);
+				cn_fs::dir directory(fp.bytes);
+
+				cn_fs::fs_header &head =
+					cn_fs::global::buf->at<cn_fs::fs_header>(0);
+
+				map<string, unsigned int>::iterator ii;
+
+				//Find the last directory
+				unsigned int last_dir  = 0;
+				unsigned int last_file = 0;
+				map<string, unsigned int>::reverse_iterator ri;
+				for (
+					ri  = directory.files.rbegin();
+					ri != directory.files.rend();
+					ri++
+				) {
+					if (last_dir != 0 && last_file != 0)
+						break;
+
+					//Grab the stat pointer. Let's see if it's a directory.
+					s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
+						head.sect_size * ri->second
+					);
+
+					if (!last_file && s->st_mode == cn_fs::T_FILE) {
+						last_file = ri->second;
+					}
+
+					if (!last_dir && s->st_mode == cn_fs::T_DIR) {
+						last_dir = ri->second;
+					}
+				}
+
+				//Start with files
+				for (
+					ii  = directory.files.begin();
+					ii != directory.files.end();
+					ii++
+				) {
+					//Grab the stat pointer. Let's get some information on this
+					s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
+						head.sect_size * ii->second
+					);
+
+					if (s->st_mode != cn_fs::T_FILE)
+						continue;
+
+					//Correctly print out the line structure.
+					for (int i = 0; i < cn_fs::global::tree_level; i++)
+						printf("%s", cn_fs::global::tree_char[i].c_str());
+					
+					printf("%c   %s\n",
+						ii->first.c_str(),
+						(last_dir)
+							? '|'
+							: ' '
+					);
+				}
+
+				if (last_file) {
+					//Correctly print out the line structure.
+					for (int i = 0; i < cn_fs::global::tree_level; i++)
+						printf("%s", cn_fs::global::tree_char[i].c_str());
+					if (last_dir)
+						printf("|");
+					printf("\n");
+				}
+
+				//Now do directories
+				for (
+					ii  = directory.files.begin();
+					ii != directory.files.end();
+					ii++
+				) {
+					//Grab the stat pointer. Let's get some information on this
+					s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
+						head.sect_size * ii->second
+					);
+
+					if (s->st_mode != cn_fs::T_DIR)
+						continue;
+
+					//Correctly print out the line structure.
+					for (int i = 0; i < cn_fs::global::tree_level; i++)
+						printf("%s", cn_fs::global::tree_char[i].c_str());
+
+					//Level up
+					cn_fs::global::tree_level++;
+					
+					//If it is the last element in the directory, blank.
+					if (ii->second == last_dir) {
+						cn_fs::global::tree_char.push_back("    ");
+						printf("\\---%s\n", ii->first.c_str());
+					}
+					else {
+						cn_fs::global::tree_char.push_back("|   ");
+						printf("+---%s\n", ii->first.c_str());
+					}
+
+					//Recursively call print
+					cn_fs::func::internal::tree_print(ii->second);
+
+					//Undo changes
+					cn_fs::global::tree_char.pop_back();
+					cn_fs::global::tree_level--;
+				}
+			}
 		}
 
 		// 1}}}
@@ -1117,11 +1239,13 @@ namespace cn_fs {
 		 */
 
 		int tree(_ARGS& args) {
-			cn_fs::util::log_error(
-				"[ERROR] %s has not been implemented yet.\n",
-				"tree"
-			);
-			return 1;
+			//Set up the tree globals.
+			cn_fs::global::tree_level = 0;
+			cn_fs::global::tree_char.clear();
+
+			cn_fs::func::internal::tree_print(cn_fs::global::cur_dir);
+
+			return 0;
 		}
 
 		/*
@@ -1380,5 +1504,7 @@ namespace cn_fs {
 		deque<uint32_t> dir_path;
 		bstream* buf = NULL;
 		map<size_t, cn_fs::file> fd_dir;
+		int tree_level;
+		vector<string> tree_char;
 	}
 }

@@ -95,6 +95,7 @@ namespace cn_fs {
 			void inject_file(bstream&, unsigned int, cn_fs::mode);
 			void resize_file(bstream&, unsigned int, uint32_t);
 			void remove_file(bstream&, unsigned int);
+			void tree_print(unsigned int);
 		}
 
 		int mkfs(_ARGS&);
@@ -125,6 +126,8 @@ namespace cn_fs {
 		extern deque<uint32_t> dir_path;
 		extern bstream* buf;
 		extern map<size_t, cn_fs::file> fd_dir;
+		extern int tree_level;
+		extern vector<string> tree_char;
 	}
 }
 
