@@ -401,6 +401,7 @@ namespace cn_fs {
 			 */
 
 			void tree_print(unsigned int lba) {
+				//Set up directory, stat, and file objects
 				cn_fs::file fp;
 				cn_fs::fs_stat *s;
 
@@ -410,32 +411,36 @@ namespace cn_fs {
 				cn_fs::fs_header &head =
 					cn_fs::global::buf->at<cn_fs::fs_header>(0);
 
+				//Iterators
 				map<string, unsigned int>::iterator ii;
+				map<string, unsigned int>::reverse_iterator ri;
 
 				//Find the last directory
 				unsigned int last_dir  = 0;
 				unsigned int last_file = 0;
-				map<string, unsigned int>::reverse_iterator ri;
+
+				//Find out what sector contains the last file and directory
 				for (
 					ri  = directory.files.rbegin();
 					ri != directory.files.rend();
 					ri++
 				) {
+					//If both the last file and directory are found, break.
 					if (last_dir != 0 && last_file != 0)
 						break;
 
-					//Grab the stat pointer. Let's see if it's a directory.
+					//Grab the stat pointer. For a particular sector.
 					s = &cn_fs::global::buf->at<cn_fs::fs_stat>(
 						head.sect_size * ri->second
 					);
 
-					if (!last_file && s->st_mode == cn_fs::T_FILE) {
+					//Did we find the last file?
+					if (!last_file && s->st_mode == cn_fs::T_FILE)
 						last_file = ri->second;
-					}
 
-					if (!last_dir && s->st_mode == cn_fs::T_DIR) {
+					//Did we find the last directory?
+					if (!last_dir && s->st_mode == cn_fs::T_DIR)
 						last_dir = ri->second;
-					}
 				}
 
 				//Start with files
