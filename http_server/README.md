@@ -32,7 +32,7 @@ Separated by implementation. Think of it as a "TODO" list.
 | ---: | :---: | :---: | :---: |
 | Windows | ❓ | ❓ | ❓ |
 | Mac OS X | ❓ | ❓ | ❓ |
-| Linux | ✅ | ❓ | |
+| Linux | ✅ | ❓ | ❓ |
 
 ## Writeup
 The goal is to implement a basic HTTP server that supports directory listing,
