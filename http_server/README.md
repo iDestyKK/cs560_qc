@@ -82,8 +82,8 @@ should not be used for this project. Usually these classes provide much more
 functions than what is required here, and a project that directly calls their
 APIs will not be given project credits.__
 
-References:
+**References:**
 
-Java socket programming guide: https://docs.oracle.com/javase/tutorial/networking/sockets/index.html
-Python socket programming guide: https://docs.python.org/3/library/socket.html
-HTTP reference: https://www.w3.org/Protocols/
+* Java socket programming guide: https://docs.oracle.com/javase/tutorial/networking/sockets/index.html
+* Python socket programming guide: https://docs.python.org/3/library/socket.html
+* HTTP reference: https://www.w3.org/Protocols/
