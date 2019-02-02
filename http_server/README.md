@@ -11,7 +11,28 @@ done or not depends on the colour of the line:
 ```diff
 - python (WIP)
 - Node.js (From CN_GTAOSM. Needs rewriting but it works.)
+- C++ (May not implement)
 ```
+
+## Feature Breakdown
+Separated by implementation. Think of it as a "TODO" list.
+
+| | Python | Node.js | C++ |
+| ---: | :---: | :---: | :---: |
+| Code Base | ✅ | ✅ | ❌ |
+| JSON Server Config | ✅ | ❌ | ❌ |
+| Static HTML Loading | ✅ | ✅ | ❌ |
+| Directory Listing | ❌ | ❌ | ❌ |
+| Other types of files (img, etc) | ❌ | ❌ | ❌ |
+| File Uploads | ❌ | ❌ | ❌ |
+
+## Verified Operating System Support
+
+| | Python | Node.js | C++ |
+| ---: | :---: | :---: | :---: |
+| Windows | ❓ | ❓ | ❓ |
+| Mac OS X | ❓ | ❓ | ❓ |
+| Linux | ✅ | ❓ | |
 
 ## Writeup
 The goal is to implement a basic HTTP server that supports directory listing,
