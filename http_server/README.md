@@ -1,5 +1,18 @@
 # HTTP Server (Programming Assignment 1 - Spring 2019)
 
+## Synopsis
+Make a webserver that can load up webpages in the web browser. That's pretty
+nifty.
+
+## Language Choice
+We are allowed to use any language we want. Since this has been done before
+(...multiple times), there are multiple implementations here. Whether they are
+done or not depends on the colour of the line:
+```diff
+- python (WIP)
+- Node.js (From CN_GTAOSM. Needs rewriting but it works.)
+```
+
 ## Writeup
 The goal is to implement a basic HTTP server that supports directory listing,
 static HTML files, user file uploads. The server needs to run on a Linux server
