@@ -42,6 +42,27 @@ def config_open(path):
 # -----------------------------------------------------------------------------
 
 #
+# buffer_fill
+#
+# Description:
+#     Reads from the socket until the data is exhausted... Probably
+#
+
+def buffer_fill(connection):
+	buffer = bytes('', 'UTF-8');
+
+	request = connection.recv(1024);
+	buffer += request;
+
+	#while True:
+	#	request = connection.recv(1024);
+	#	if not request:
+	#		break;
+	#	buffer += request;
+
+	return buffer;
+
+#
 # server_run
 #
 # Description:
@@ -60,6 +81,7 @@ def server_run(config):
 	# Allocate a server socket
 	listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
 	listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1);
+	listen_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1);
 
 	# Bind the socket to a port
 	listen_socket.bind((HOST, PORT));
@@ -70,29 +92,144 @@ def server_run(config):
 
 	while True:
 		client_connection, client_address = listen_socket.accept();
-		request = client_connection.recv(1024);
+
+		# Construct the buffer
+		buffer = buffer_fill(client_connection);
 
 		# Prepare the default HTTP header
-		http_response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+		http_response  = "HTTP/1.1 200 OK\r\n";
+		http_response += "Content-Type: text/html; charset=UTF-8\r\n";
+		http_response += "Content-Encoding: UTF-8\r\n";
+		http_response += "\r\n";
 
-		# Decode the request
-		req_text = request.decode("utf-8");
+		# Before we break anything, we need to know what type of request this
+		# is... GET or POST?
 
-		# Extract the referer (URLs)
-		refs = re.findall("GET /(.*?) HTTP", req_text);
+		is_get  = False;
+		is_post = False;
 
-		# Append the path file
-		for url in refs:
-			# Log the GET request
-			print("[GET] " + url);
+		# Get the first 3 bytes
+		type_chk = buffer[:3];
+		type_chks = type_chk.decode("utf-8");
 
-			# Find the path and append the file to http_response
-			try:
-				with open(config['page_root'] + "/" + url, 'r') as fp:
-					http_response += fp.read().replace('\n', '')
-			except FileNotFoundError:
-				# Change the HTTP response to a 404
-				http_response = "HTTP/1.1 404 Not Found\r\n\r\n";
+		if (type_chks == "GET"):
+			is_get = True;
+		elif (type_chks == "POS" and buffer[:4].decode("utf-8") == "POST"):
+			is_post = True;
+
+		# ---------------------------------------------------------------------
+		# GET data parsing                                                 {{{2
+		# ---------------------------------------------------------------------
+
+		if is_get:
+			# Decode the request
+			req_text = buffer.decode("utf-8");
+
+			# Extract the referer (URLs)
+			refs = re.findall("GET \/([^?]*?)[ ?#].*HTTP", req_text);
+
+			# Append the path file
+			for url in refs:
+				# Log the GET request
+				print("[GET] " + url);
+
+				# Find the path and append the file to http_response
+				try:
+					with open(config['page_root'] + "/" + url, 'r') as fp:
+						http_response += fp.read(); #.replace('\n', '')
+				except FileNotFoundError:
+					# Change the HTTP response to a 404
+					http_response = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+		# ---------------------------------------------------------------------
+		# POST data parsing                                                {{{2
+		# ---------------------------------------------------------------------
+
+		if is_post:
+			print("[POST] RECEIVED")
+
+			# Looks like we're doing this completely manually.
+			# Scan for the \r\n\r\n
+			i = 0
+			while True:
+				substr_parse = buffer[i:i + 4].decode("utf-8");
+				if (substr_parse == "\r\n\r\n"):
+					break;
+				i += 1;
+
+			# Extract header
+			req_text = buffer[:i].decode("utf-8");
+
+			# Get Content Length
+			cl_scan = re.findall("Content-Length: (.*?)\r\n", req_text);
+			content_length = 0;
+
+			for num in cl_scan:
+				content_length = int(num);
+
+			total = 0 #len(buffer);
+			buffer = bytes('', 'UTF-8');
+
+			print("Receiving " + str(content_length) + " bytes...");
+
+			# Behold
+			while (total < content_length):
+				request = client_connection.recv(content_length, socket.MSG_WAITALL);
+				#request = client_connection.recv(1024);
+
+				#print(request);
+
+				if not request:
+					break;
+
+				buffer += request;
+				total += len(request);
+				print(len(request));
+				sys.stdout.write("\rDownloading: " + str(total) + "/" + str(content_length) + "\n");
+
+				#if len(request) < 1024:
+				#	break;
+
+			sys.stdout.write("\n");
+
+			print("yes")
+
+			# It's going to have some header information. Let's extract it.
+			i = 0;
+			while True:
+				substr_parse = buffer[i:i + 4].decode("utf-8");
+				if (substr_parse == "\r\n\r\n"):
+					break;
+				i += 1;
+				if i >= content_length - 4:
+					break;
+
+			# Let's also get rid of the final line
+			j = content_length - 4;
+			while True:
+				substr_parse = buffer[j:j + 2].decode("utf-8");
+				if (substr_parse == "\r\n"):
+					break;
+				j -= 1;
+				if (j <= 0):
+					break;
+
+			if (i < content_length):
+				header = buffer[:i].decode("utf-8");
+				print(header);
+
+				# Extract filename
+				fns = re.findall("filename=\"(.*?)\"", header);
+
+				if fns:
+					fn = fns[0];
+				else:
+					fn = "upload.dat";
+
+				# Write the buffer to a file.
+				with open(config['uploads'] + "/" + fn, 'wb') as fp:
+					fp.write(buffer[i + 4:j])
+
 		
 		# Send the response and close the connection
 		client_connection.sendall(http_response.encode());
