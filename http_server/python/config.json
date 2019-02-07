@@ -1,5 +1,6 @@
 {
 	"page_root": "./htdocs",
+	"uploads": "./uploads",
 	"host": "",
-	"port": 8888
+	"port": 28961
 }
