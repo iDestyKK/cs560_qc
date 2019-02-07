@@ -24,7 +24,7 @@ Separated by implementation. Think of it as a "TODO" list.
 | Static HTML Loading | ✅ | ✅ | ❌ |
 | Directory Listing | ❌ | ❌ | ❌ |
 | Other types of files (img, etc) | ❌ | ❌ | ❌ |
-| File Uploads | ❌ | ❌ | ❌ |
+| File Uploads | ✅ | ❌ | ❌ |
 
 ## Verified Operating System Support
 
