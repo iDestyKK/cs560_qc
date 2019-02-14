@@ -17,6 +17,9 @@ import sys
 import re
 import json
 import threading
+import os
+from datetime import datetime
+from urllib.parse import unquote
 
 # -----------------------------------------------------------------------------
 # Helper Functions                                                         {{{1
@@ -37,6 +40,26 @@ def config_open(path):
 		json_dat = json.load(fp);
 
 	return json_dat;
+
+#
+# friendly_size
+#
+# Description:
+#     Takes "size" and turns it into a friendly value that has less numbers...
+#
+
+def friendly_size(size):
+	units = [
+		"", "K", "M", "G", "T", "P", "E", "Z", "Y"
+	];
+
+	cu = 0;
+
+	while (size > 1024):
+		cu += 1;
+		size /= 1024;
+
+	return str(round(size, 1)) + units[cu];
 
 # -----------------------------------------------------------------------------
 # Server Code                                                              {{{1
@@ -78,7 +101,6 @@ def read_from_client(config, client_connection, client_address):
 	http_response  = "HTTP/1.1 200 OK\r\n";
 	http_response += "Content-Type: text/html; charset=UTF-8\r\n";
 	http_response += "Content-Encoding: UTF-8\r\n";
-	http_response += "\r\n";
 
 	# Before we break anything, we need to know what type of request this
 	# is... GET or POST?
@@ -108,16 +130,111 @@ def read_from_client(config, client_connection, client_address):
 
 		# Append the path file
 		for url in refs:
+			ourl = url;
+			url = unquote(url);
+
+			#if (url[-1] != "/"):
+			#	url += "/";
+			#	#url = url[:-1];
+
 			# Log the GET request
 			print("[GET] " + url);
 
 			# Find the path and append the file to http_response
 			try:
 				with open(config['page_root'] + "/" + url, 'r') as fp:
+					# Add the newline
+					http_response += "\r\n";
+
 					http_response += fp.read(); #.replace('\n', '')
+
 			except FileNotFoundError:
 				# Change the HTTP response to a 404
 				http_response = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+			except IsADirectoryError:
+				# Add location... only if there isn't a "/"
+				if (url != "" and url[-1] != "/"):
+					http_response = "HTTP/1.1 308 Permanent Redirect\r\n"
+					http_response += "Location: " + os.path.basename(url) + "/\r\n";
+					http_response += "\r\n\r\n";
+				else:
+					print(http_response);
+
+					# Add the newline
+					http_response += "\r\n";
+
+					# Generate a response that prints a webpage
+					http_response += "<html>\n";
+
+					# Head
+					http_response += "<head>\n"
+					http_response += "<title>Index of /" + url + "</title>\n"
+					http_response += "</head>\n";
+
+					# Body
+					http_response += "<body>\n";
+					http_response += "<h1>Index of /" + url + "</h1>\n";
+					http_response += "<table>\n";
+
+					# Columns
+					http_response += "<tr>\n";
+					http_response += "<th valign = \"top\"></th>\n";
+					http_response += "<th>Name</th>\n";
+					http_response += "<th>Last modified</th>\n";
+					http_response += "<th>Size</th>\n";
+					http_response += "<th>Description</th>\n";
+					http_response += "</tr>\n";
+
+					# The horizontal line
+					http_response += "<tr><th colspan = \"5\"><hr></th></tr>\n";
+
+					# Parent Directory Link
+					icon = {
+						"back": "/icons/back.gif",
+						"folder": "/icons/folder.gif",
+						"file": "/icons/file.gif"
+					};
+
+					# TODO: Add icons
+					http_response += "<tr>\n<td></td>\n<td>\n<a href = \"../\">";
+					http_response += "Parent Directory</a>\n<td></td>\n<td style = \"text-align: right\">-</td>\n";
+					http_response += "<td></td>\n</tr>\n";
+
+					# Add in each and every file
+					dirpath = config['page_root'] + "/" + url + "/";
+
+					for file in os.listdir(dirpath):
+						fstat = os.stat(dirpath + "/" + file);
+						fname = os.fsdecode(file);
+						http_response += "<tr>\n";
+						http_response += "<td></td>\n";
+						http_response += "<td>\n";
+
+						# Directories put a "/" at the end.
+						if os.path.isdir(dirpath + "/" + file):
+							http_response += "<a href = \"./" + fname + "/\">" + fname + "/</a>\n";
+						else:
+							http_response += "<a href = \"./" + fname + "\">" + fname + "</a>\n";
+
+						http_response += "</td>\n";
+						http_response += "<td>" + datetime.fromtimestamp(fstat.st_mtime).strftime('%Y-%m-%d %H:%M') + "</td>\n";
+
+						# Size isn't shown if it's a directory
+						if os.path.isdir(dirpath + "/" + file):
+							http_response += "<td style = \"text-align: right;\">-</td>\n";
+						else:
+							http_response += "<td style = \"text-align: right;\">" + friendly_size(fstat.st_size) + "</td>\n";
+
+						http_response += "</tr>\n";
+
+					# Another horizontal line
+					http_response += "<tr><th colspan = \"5\"><hr></th></tr>\n";
+
+					# Close. We are done here.
+					http_response += "</table>\n";
+					http_response += "</body>\n";
+					http_response += "</html>\n";
 
 	# ---------------------------------------------------------------------
 	# POST data parsing                                                {{{2
@@ -145,7 +262,7 @@ def read_from_client(config, client_connection, client_address):
 		for num in cl_scan:
 			content_length = int(num);
 
-		total = 0 #len(buffer);
+		total = 0
 		buffer = bytes('', 'UTF-8');
 
 		print("Receiving " + str(content_length) + " bytes...");
