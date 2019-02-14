@@ -22,7 +22,7 @@ Separated by implementation. Think of it as a "TODO" list.
 | Code Base | ✅ | ✅ | ❌ |
 | JSON Server Config | ✅ | ❌ | ❌ |
 | Static HTML Loading | ✅ | ✅ | ❌ |
-| Directory Listing | ❌ | ❌ | ❌ |
+| Directory Listing | ✅ | ❌ | ❌ |
 | Other types of files (img, etc) | ❌ | ❌ | ❌ |
 | File Uploads | ✅ | ❌ | ❌ |
 
