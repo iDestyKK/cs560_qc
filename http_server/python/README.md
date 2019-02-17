@@ -30,7 +30,12 @@ you are using the default configuration).
 ## 2. Python sockets
 While we were not allowed to use HTTP.server, we *were* allowed to use Python
 sockets, which is the entire reason this project was possible in the first
-place. The server 
+place. The server allocates a server socket, binds it to a port, and then
+listens for incoming connections, just as the assignment states to do. Then,
+after accepting incoming requests, it generates a response and returns it back
+to the sender.
+
+The server does this indefinitely until killed or until a fatal error occurs.
 
 ## 3. The struggle with a single threaded webserver (and solution)
 Initially, the socket handled one request at a time. This sufficed for simple
@@ -54,8 +59,8 @@ in a first-come, first-serve (queue) way.
 |  Request   1    2  |
 +--------------------+
 |  Recv 1    |       |
-|  Recv 2    |       |
-|    .            |  |
+|  Recv 2    |       | ____ Would get stuck here anticipating a fragment for
+|    .            |  |      the first request.
 |    .            |  |
 |    .       |       |
 |    .            |  |
