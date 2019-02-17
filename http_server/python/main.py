@@ -53,7 +53,14 @@ MIME = {
 
 	# Default value. Just raw bytes
 	"other": "application/octet-stream"
-}
+};
+
+# Icons for the directory lister.
+ICON = {
+	"back"   : "/icons/back.gif",
+	"folder" : "/icons/folder.gif",
+	"generic": "/icons/generic.gif"
+};
 
 # -----------------------------------------------------------------------------
 # Helper Functions                                                         {{{1
@@ -113,11 +120,6 @@ def determine_MIME(path):
 	# Just tell the webserver to return raw data.
 	return MIME['other'];
 
-
-# -----------------------------------------------------------------------------
-# Server Code                                                              {{{1
-# -----------------------------------------------------------------------------
-
 #
 # buffer_fill
 #
@@ -139,11 +141,98 @@ def buffer_fill(connection):
 
 	return buffer;
 
+# -----------------------------------------------------------------------------
+# Server Code                                                              {{{1
+# -----------------------------------------------------------------------------
+
 #
-# client class
+# generate_directory_listing
 #
 # Description:
-#     FUCK
+#     Will generate a valid HTML document containing data listing of a specific
+#     directory.
+#
+
+def generate_directory_listing(path, config):
+	# Generate a response that prints a webpage
+	html = "<html>\n";
+
+	# Head
+	html += "<head>\n"
+	html += "<title>Index of /" + path + "</title>\n"
+	html += "</head>\n";
+
+	# Body
+	html += "<body>\n";
+	html += "<h1>Index of /" + path + "</h1>\n";
+	html += "<table>\n";
+
+	# Columns
+	html += "<tr>\n";
+	html += "<th valign = \"top\"></th>\n";
+	html += "<th>Name</th>\n";
+	html += "<th>Last modified</th>\n";
+	html += "<th>Size</th>\n";
+	html += "<th>Description</th>\n";
+	html += "</tr>\n";
+
+	# The horizontal line
+	html += "<tr><th colspan = \"5\"><hr></th></tr>\n";
+
+	# Parent Directory Link
+	html += "<tr>\n<td>";
+	html += "<img src = \"" + ICON['back'] + "\" alt = \"icon\"/>"
+	html += "</td>\n<td>\n<a href = \"../\">";
+	html += "Parent Directory</a>\n<td></td>\n<td style = \"text-align: right\">-</td>\n";
+	html += "<td></td>\n</tr>\n";
+
+	# Add in each and every file
+	dirpath = config['page_root'] + "/" + path + "/";
+
+	for file in os.listdir(dirpath):
+		fstat = os.stat(dirpath + "/" + file);
+		fname = os.fsdecode(file);
+		html += "<tr>\n";
+
+		if os.path.isdir(dirpath + "/" + file):
+			# Is Directory
+			html += "<td><img src = \"" + ICON['folder'] + "\" alt = \"icon\"/></td>\n";
+			html += "<td>\n";
+			html += "<a href = \"./" + fname + "/\">" + fname + "/</a>\n";
+		else:
+			# Is file
+			html += "<td><img src = \"" + ICON['generic'] + "\" alt = \"icon\"/></td>\n";
+			html += "<td>\n";
+			html += "<a href = \"./" + fname + "\">" + fname + "</a>\n";
+
+		html += "</td>\n";
+		html += "<td>" + datetime.fromtimestamp(fstat.st_mtime).strftime('%Y-%m-%d %H:%M') + "</td>\n";
+
+		# Size isn't shown if it's a directory
+		if os.path.isdir(dirpath + "/" + file):
+			html += "<td style = \"text-align: right;\">-</td>\n";
+		else:
+			html += "<td style = \"text-align: right;\">" + friendly_size(fstat.st_size) + "</td>\n";
+
+		html += "</tr>\n";
+
+	# Another horizontal line
+	html += "<tr><th colspan = \"5\"><hr></th></tr>\n";
+
+	# Close. We are done here.
+	html += "</table>\n";
+	html += "</body>\n";
+	html += "</html>\n";
+
+	return html;
+
+#
+# read_from_client
+#
+# Description:
+#     Threaded function that will read data from a connection, interpret it,
+#     generate an appropriate response, and return. This function is called
+#     per request.
 #
 
 def read_from_client(config, client_connection, client_address):
@@ -225,80 +314,13 @@ def read_from_client(config, client_connection, client_address):
 				else:
 					print(http_response);
 
+					# Generate the page on-the-fly. This is the directory
+					# listing method.
+
 					# Add the newline
 					http_response += "\r\n";
 
-					# Generate a response that prints a webpage
-					http_response += "<html>\n";
-
-					# Head
-					http_response += "<head>\n"
-					http_response += "<title>Index of /" + url + "</title>\n"
-					http_response += "</head>\n";
-
-					# Body
-					http_response += "<body>\n";
-					http_response += "<h1>Index of /" + url + "</h1>\n";
-					http_response += "<table>\n";
-
-					# Columns
-					http_response += "<tr>\n";
-					http_response += "<th valign = \"top\"></th>\n";
-					http_response += "<th>Name</th>\n";
-					http_response += "<th>Last modified</th>\n";
-					http_response += "<th>Size</th>\n";
-					http_response += "<th>Description</th>\n";
-					http_response += "</tr>\n";
-
-					# The horizontal line
-					http_response += "<tr><th colspan = \"5\"><hr></th></tr>\n";
-
-					# Parent Directory Link
-					icon = {
-						"back": "/icons/back.gif",
-						"folder": "/icons/folder.gif",
-						"file": "/icons/file.gif"
-					};
-
-					# TODO: Add icons
-					http_response += "<tr>\n<td></td>\n<td>\n<a href = \"../\">";
-					http_response += "Parent Directory</a>\n<td></td>\n<td style = \"text-align: right\">-</td>\n";
-					http_response += "<td></td>\n</tr>\n";
-
-					# Add in each and every file
-					dirpath = config['page_root'] + "/" + url + "/";
-
-					for file in os.listdir(dirpath):
-						fstat = os.stat(dirpath + "/" + file);
-						fname = os.fsdecode(file);
-						http_response += "<tr>\n";
-						http_response += "<td></td>\n";
-						http_response += "<td>\n";
-
-						# Directories put a "/" at the end.
-						if os.path.isdir(dirpath + "/" + file):
-							http_response += "<a href = \"./" + fname + "/\">" + fname + "/</a>\n";
-						else:
-							http_response += "<a href = \"./" + fname + "\">" + fname + "</a>\n";
-
-						http_response += "</td>\n";
-						http_response += "<td>" + datetime.fromtimestamp(fstat.st_mtime).strftime('%Y-%m-%d %H:%M') + "</td>\n";
-
-						# Size isn't shown if it's a directory
-						if os.path.isdir(dirpath + "/" + file):
-							http_response += "<td style = \"text-align: right;\">-</td>\n";
-						else:
-							http_response += "<td style = \"text-align: right;\">" + friendly_size(fstat.st_size) + "</td>\n";
-
-						http_response += "</tr>\n";
-
-					# Another horizontal line
-					http_response += "<tr><th colspan = \"5\"><hr></th></tr>\n";
-
-					# Close. We are done here.
-					http_response += "</table>\n";
-					http_response += "</body>\n";
-					http_response += "</html>\n";
+					http_response += generate_directory_listing(url, config);
 
 	# ---------------------------------------------------------------------
 	# POST data parsing                                                {{{2
