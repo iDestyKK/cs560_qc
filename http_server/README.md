@@ -23,7 +23,7 @@ Separated by implementation. Think of it as a "TODO" list.
 | JSON Server Config | ✅ | ❌ | ❌ |
 | Static HTML Loading | ✅ | ✅ | ❌ |
 | Directory Listing | ✅ | ❌ | ❌ |
-| Other types of files (img, etc) | ❌ | ❌ | ❌ |
+| Other types of files (img, etc) | ✅ | ❌ | ❌ |
 | File Uploads | ✅ | ❌ | ❌ |
 
 ## Verified Operating System Support
