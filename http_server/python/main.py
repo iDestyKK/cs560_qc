@@ -22,6 +22,40 @@ from datetime import datetime
 from urllib.parse import unquote
 
 # -----------------------------------------------------------------------------
+# Globals                                                                  {{{1
+# -----------------------------------------------------------------------------
+
+# This is so we can put in the right data to the HTTP Header when sending the
+# browser data.
+MIME = {
+	# Web Page files
+	""     : "text/html",
+	"html" : "text/html",
+	"js"   : "text/javascript",
+	"css"  : "text/css",
+	"txt"  : "text/plain",
+	"json" : "application/json",
+
+	# Images
+	"gif"  : "image/gif",
+	"jpeg" : "image/jpeg",
+	"jpg"  : "image/jpeg",
+	"png"  : "image/png",
+	"svg"  : "image/svg+xml",
+	"ico"  : "image/x-icon",
+
+	# Multimedia
+	"wav"  : "audio/wave",
+	"mp3"  : "audio/mpeg",
+	"flac" : "audio/flac",
+	"webm" : "audio/webm",
+	"ogg"  : "audio/ogg",
+
+	# Default value. Just raw bytes
+	"other": "application/octet-stream"
+}
+
+# -----------------------------------------------------------------------------
 # Helper Functions                                                         {{{1
 # -----------------------------------------------------------------------------
 
@@ -61,6 +95,25 @@ def friendly_size(size):
 
 	return str(round(size, 1)) + units[cu];
 
+#
+# determine_MIME
+#
+# Description:
+#     From a file path, determine the file type based on the extension.
+#
+
+def determine_MIME(path):
+	# Make the path lowercase and extract extension
+	# Oh... and remove the "." at the beginning too.
+	ext = os.path.splitext(path.lower())[1][1:];
+
+	if ext in MIME:
+		return MIME[ext];
+
+	# Just tell the webserver to return raw data.
+	return MIME['other'];
+
+
 # -----------------------------------------------------------------------------
 # Server Code                                                              {{{1
 # -----------------------------------------------------------------------------
@@ -97,14 +150,17 @@ def read_from_client(config, client_connection, client_address):
 	# Construct the buffer
 	buffer = buffer_fill(client_connection);
 
-	# Prepare the default HTTP header
-	http_response  = "HTTP/1.1 200 OK\r\n";
-	http_response += "Content-Type: text/html; charset=UTF-8\r\n";
-	http_response += "Content-Encoding: UTF-8\r\n";
+	# Empty HTTP Header
+	http_response = "";
+
+	# Buffer to contain the HTML response
+	response_buffer = bytes('', 'UTF-8');
+
+	# Buffer to contain the final data sent to client (including response)
+	content_buffer = bytes('', 'UTF-8');
 
 	# Before we break anything, we need to know what type of request this
 	# is... GET or POST?
-
 	is_get  = False;
 	is_post = False;
 
@@ -133,20 +189,28 @@ def read_from_client(config, client_connection, client_address):
 			ourl = url;
 			url = unquote(url);
 
-			#if (url[-1] != "/"):
-			#	url += "/";
-			#	#url = url[:-1];
+			# If it's a "/" and there is a "index.html", add it.
+			if url == "" or url[-1:] == "/":
+				if os.path.exists(config['page_root'] + "/" + url + "index.html"):
+					url += "index.html";
 
 			# Log the GET request
 			print("[GET] " + url);
 
+			# Prepare the default HTTP header
+			http_response  = "HTTP/1.1 200 OK\r\n";
+			http_response += "Content-Type: ";
+			http_response += determine_MIME(url);
+			http_response += "; charset=UTF-8\r\n";
+			http_response += "Content-Encoding: UTF-8\r\n";
+
 			# Find the path and append the file to http_response
 			try:
-				with open(config['page_root'] + "/" + url, 'r') as fp:
+				with open(config['page_root'] + "/" + url, 'rb') as fp:
 					# Add the newline
 					http_response += "\r\n";
 
-					http_response += fp.read(); #.replace('\n', '')
+					content_buffer = fp.read();
 
 			except FileNotFoundError:
 				# Change the HTTP response to a 404
@@ -325,9 +389,11 @@ def read_from_client(config, client_connection, client_address):
 			with open(config['uploads'] + "/" + fn, 'wb') as fp:
 				fp.write(buffer[i + 4:j])
 
+	response_buffer = http_response.encode();
+	response_buffer += content_buffer;
 	
 	# Send the response and close the connection
-	client_connection.sendall(http_response.encode());
+	client_connection.sendall(response_buffer);
 	client_connection.close();
 
 #
