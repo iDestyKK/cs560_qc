@@ -240,4 +240,35 @@ request = client_connection.recv(content_length, socket.MSG_WAITALL);
 ```
 The procedure of reading all bytes this way allows for the server to
 reconstruct the file and dump it in the `upload` directory, specified by the
-configuration JSON file on the server's bootup.
+configuration JSON file on the server's bootup. When a file is successfully
+uploaded, it will send a response to the client to load the requested page.
+
+There is an alternate way to download files, via calling `recv` multiple times
+with a size of 1024 and reconstructing the buffer manually. However, the server
+has had more success with trying to receive all of the bytes at once with the
+`socket.MSG_WAITALL` flag passed in. This makes this server UNIX-only,
+unfortunately.
+
+## 8. Matching GET and POST requests via Regex
+When the server receives a GET or POST request, we want to extract the data
+from it to figure out what to do next. Requests like these have headers in the
+first line that may look like this:
+```
+GET /index.html HTTP...
+```
+
+```
+POST /index.html HTTP...
+```
+
+As such, the following Regex expressions are utilised:
+```python
+import re
+
+re.findall("GET \/([^?]*?)[ ?#].*HTTP", req_text);  # GET
+re.findall("POST \/([^?]*?)[ ?#].*HTTP", req_text); # POST
+```
+
+These expressions capture the path of the URL that the user is wanting to go to
+after the request has been processed. Usually it's for loading a page at a
+specified path.
