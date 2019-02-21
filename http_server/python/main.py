@@ -20,105 +20,9 @@ import threading
 import os
 from datetime import datetime
 from urllib.parse import unquote
-
-# -----------------------------------------------------------------------------
-# Globals                                                                  {{{1
-# -----------------------------------------------------------------------------
-
-# This is so we can put in the right data to the HTTP Header when sending the
-# browser data.
-MIME = {
-	# Web Page files
-	""     : "text/html",
-	"html" : "text/html",
-	"js"   : "text/javascript",
-	"css"  : "text/css",
-	"txt"  : "text/plain",
-	"json" : "application/json",
-
-	# Images
-	"gif"  : "image/gif",
-	"jpeg" : "image/jpeg",
-	"jpg"  : "image/jpeg",
-	"png"  : "image/png",
-	"svg"  : "image/svg+xml",
-	"ico"  : "image/x-icon",
-
-	# Multimedia
-	"wav"  : "audio/wave",
-	"mp3"  : "audio/mpeg",
-	"flac" : "audio/flac",
-	"webm" : "audio/webm",
-	"ogg"  : "audio/ogg",
-
-	# Default value. Just raw bytes
-	"other": "application/octet-stream"
-};
-
-# Icons for the directory lister.
-ICON = {
-	"back"   : "/icons/back.gif",
-	"folder" : "/icons/folder.gif",
-	"generic": "/icons/generic.gif"
-};
-
-# -----------------------------------------------------------------------------
-# Helper Functions                                                         {{{1
-# -----------------------------------------------------------------------------
-
-#
-# config_open
-#
-# Description:
-#     Opens a configuration json file and stores it in a variable. This can be
-#     used for reading any JSON file for any purpose. Though it's mainly used
-#     for reading in the initial "config.json" for the server.
-#
-
-def config_open(path):
-	# Load the file into a dictionary
-	with open(path) as fp:
-		json_dat = json.load(fp);
-
-	return json_dat;
-
-#
-# friendly_size
-#
-# Description:
-#     Takes "size" and turns it into a friendly value that has less numbers...
-#
-
-def friendly_size(size):
-	units = [
-		"", "K", "M", "G", "T", "P", "E", "Z", "Y"
-	];
-
-	cu = 0;
-
-	while (size > 1024):
-		cu += 1;
-		size /= 1024;
-
-	return str(round(size, 1)) + units[cu];
-
-#
-# determine_MIME
-#
-# Description:
-#     From a file path, determine the file type based on the extension.
-#
-
-def determine_MIME(path):
-	# Make the path lowercase and extract extension
-	# Oh... and remove the "." at the beginning too.
-	ext = os.path.splitext(path.lower())[1][1:];
-
-	if ext in MIME:
-		return MIME[ext];
-
-	# Just tell the webserver to return raw data.
-	return MIME['other'];
+from globals import *
+from helper import *
+from response import response
 
 #
 # buffer_fill
@@ -144,6 +48,63 @@ def buffer_fill(connection):
 # -----------------------------------------------------------------------------
 # Server Code                                                              {{{1
 # -----------------------------------------------------------------------------
+
+#
+# webpage_response
+#
+# Description:
+#     Generates a response given urls.
+#
+
+def webpage_response(urls, config):
+	# Append the path file
+	for url in urls:
+		ourl = url;
+		url = unquote(url);
+
+		# If it's a "/" and there is a "index.html", add it.
+		if url == "" or url[-1:] == "/":
+			if os.path.exists(config['page_root'] + "/" + url + "index.html"):
+				url += "index.html";
+
+		# Prepare the default HTTP header
+		page_res = response();
+		page_res.set_status(200);
+		page_res.set_header("Content-Type", determine_MIME(url) + "; charset=UTF-8");
+		page_res.set_header("Content-Encoding", "UTF-8");
+
+		# Find the path and append the file to http_response
+		try:
+			page_res.set_content_from_file(
+				config['page_root'] + "/" + url
+			);
+
+		except FileNotFoundError:
+			# Change the HTTP response to a 404
+			page_res.set_status(404);
+
+		except IsADirectoryError:
+			# Add location... only if there isn't a "/"
+			if (url != "" and url[-1] != "/"):
+				page_res.set_status(308);
+				page_res.set_header("Location", os.path.basename(url) + "/");
+			else:
+				# Generate the webpage (directory listing) on-the-fly.
+				page_res.set_content(
+					generate_directory_listing(url, config)
+				);
+
+	# Return the response
+	return page_res;
+
+#
+# parse_post
+#
+# Description:
+#     Parses POST data.
+#
+
+#def parse_post(buffer):
 
 #
 # generate_directory_listing
@@ -247,6 +208,7 @@ def read_from_client(config, client_connection, client_address):
 
 	# Buffer to contain the final data sent to client (including response)
 	content_buffer = bytes('', 'UTF-8');
+	page_buf = response();
 
 	# Before we break anything, we need to know what type of request this
 	# is... GET or POST?
@@ -273,54 +235,8 @@ def read_from_client(config, client_connection, client_address):
 		# Extract the referer (URLs)
 		refs = re.findall("GET \/([^?]*?)[ ?#].*HTTP", req_text);
 
-		# Append the path file
-		for url in refs:
-			ourl = url;
-			url = unquote(url);
-
-			# If it's a "/" and there is a "index.html", add it.
-			if url == "" or url[-1:] == "/":
-				if os.path.exists(config['page_root'] + "/" + url + "index.html"):
-					url += "index.html";
-
-			# Log the GET request
-			print("[GET] " + url);
-
-			# Prepare the default HTTP header
-			http_response  = "HTTP/1.1 200 OK\r\n";
-			http_response += "Content-Type: ";
-			http_response += determine_MIME(url);
-			http_response += "; charset=UTF-8\r\n";
-			http_response += "Content-Encoding: UTF-8\r\n";
-
-			# Find the path and append the file to http_response
-			try:
-				with open(config['page_root'] + "/" + url, 'rb') as fp:
-					# Add the newline
-					http_response += "\r\n";
-
-					content_buffer = fp.read();
-
-			except FileNotFoundError:
-				# Change the HTTP response to a 404
-				http_response = "HTTP/1.1 404 Not Found\r\n\r\n";
-
-			except IsADirectoryError:
-				# Add location... only if there isn't a "/"
-				if (url != "" and url[-1] != "/"):
-					http_response = "HTTP/1.1 308 Permanent Redirect\r\n"
-					http_response += "Location: " + os.path.basename(url) + "/\r\n";
-					http_response += "\r\n\r\n";
-				else:
-					print(http_response);
-
-					# Generate the page on-the-fly. This is the directory
-					# listing method.
-
-					# Add the newline
-					http_response += "\r\n";
-
-					http_response += generate_directory_listing(url, config);
+		# Generate a response.
+		page_buf = webpage_response(refs, config);
 
 	# ---------------------------------------------------------------------
 	# POST data parsing                                                {{{2
@@ -328,6 +244,9 @@ def read_from_client(config, client_connection, client_address):
 
 	if is_post:
 		print("[POST] RECEIVED")
+
+		req_text = buffer.decode("utf-8");
+		refs = re.findall("POST \/([^?]*?)[ ?#].*HTTP", req_text);
 
 		# Looks like we're doing this completely manually.
 		# Scan for the \r\n\r\n
@@ -365,8 +284,7 @@ def read_from_client(config, client_connection, client_address):
 
 			buffer += request;
 			total += len(request);
-			print(len(request));
-			sys.stdout.write("\rDownloading: " + str(total) + "/" + str(content_length) + "\n");
+			#sys.stdout.write("\rDownloading: " + str(total) + "/" + str(content_length) + "\n");
 
 			#if len(request) < 1024:
 			#	break;
@@ -411,11 +329,11 @@ def read_from_client(config, client_connection, client_address):
 			with open(config['uploads'] + "/" + fn, 'wb') as fp:
 				fp.write(buffer[i + 4:j])
 
-	response_buffer = http_response.encode();
-	response_buffer += content_buffer;
-	
-	# Send the response and close the connection
-	client_connection.sendall(response_buffer);
+		# Construct the response
+		page_buf = webpage_response(refs, config);
+
+	# Send "page_buf". Since it's guaranteed to be generated.
+	client_connection.sendall(page_buf.generate_buffer());
 	client_connection.close();
 
 #
@@ -449,7 +367,14 @@ def server_run(config):
 	while True:
 		client_connection, client_address = listen_socket.accept();
 
-		threading.Thread(target = read_from_client, args = (config, client_connection, client_address)).start();
+		threading.Thread(
+			target = read_from_client,
+			args = (
+				config,
+				client_connection,
+				client_address
+			)
+		).start();
 
 # -----------------------------------------------------------------------------
 # Main Function                                                            {{{1
