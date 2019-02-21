@@ -231,3 +231,13 @@ types. There is also a test page at `page_root/image.html` which tests image
 file types being loaded from cross-domain, and also locally stored. You may
 also access these files by typing the paths to them stored on the server
 directly.
+
+## 7. File Uploads
+The server is capable of accepting `multipart/form-data` entries via POST. It
+does this by receiving packets all at once via the following:
+```python
+request = client_connection.recv(content_length, socket.MSG_WAITALL);
+```
+The procedure of reading all bytes this way allows for the server to
+reconstruct the file and dump it in the `upload` directory, specified by the
+configuration JSON file on the server's bootup.
