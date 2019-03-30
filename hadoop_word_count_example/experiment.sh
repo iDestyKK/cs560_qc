@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ $# -ne 2 ]; then
+	printf "Usage: %s inputs output\n" "$0"
+	exit 1
+fi
+
 HADOOP_DIR="/usr/local/hadoop-2.7.6"
 BIN_DIR="${HADOOP_DIR}/bin"
 
@@ -9,5 +14,5 @@ ${BIN_DIR}/hadoop jar \
 	-file    py/reducer.py      \
 	-mapper  py/mapper.py       \
 	-reducer py/reducer.py      \
-	-input   /tmp_dat/100-0.txt \
-	-output  /tmp_dat/out.txt
+	-input   "$1"               \
+	-output  "$2"

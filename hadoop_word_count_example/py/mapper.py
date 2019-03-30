@@ -4,29 +4,34 @@
 import sys;
 import string;
 import re;
+import os;
 
 punctuation='\'‘’"“”#$%&\\()*+,/:;<=>?@[]^_`{|}—~!?'
 
-for line in sys.stdin:
-	line = line.strip();
-	words = line.split();
+#print ('{}\t{}'.format(os.environ['mapreduce_map_input_file'], 1));
+f = os.environ['mapreduce_map_input_file'];
 
-	# Grab all "words"
-	for word in words:
-		# Aggressively remove characters in "punctuation".
-		word = word.translate(None, punctuation);
-		word.strip();
+#for line in sys.stdin:
+for num, line in enumerate(sys.stdin):
+    line = line.strip();
+    words = line.split();
 
-		# Any other punctuation (- and .) turns into spaces
-		word = re.sub('-', ' ', word);
-		word = re.sub('\.', ' ', word);
+    # Grab all "words"
+    for word in words:
+        # Aggressively remove characters in "punctuation".
+        word = word.translate(None, punctuation);
+        word.strip();
 
-		real_words = word.split();
+        # Any other punctuation (- and .) turns into spaces
+        word = re.sub('-', ' ', word);
+        word = re.sub('\.', ' ', word);
 
-		for real_word in real_words:
-			# Manually filter out useless "words"
-			if (real_word == ''):
-				continue;
+        real_words = word.split();
 
-			# Log the word... after it's been lowercased.
-			print('{}\t{}'.format(real_word.lower(), 1));
+        for real_word in real_words:
+            # Manually filter out useless "words"
+            if (real_word == ''):
+                continue;
+
+            # Log the word... after it's been lowercased.
+            print('{}\t{}\t{}'.format(real_word.lower(), f, num + 1));
