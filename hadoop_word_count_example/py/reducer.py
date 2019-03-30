@@ -39,14 +39,12 @@ for line in sys.stdin:
 #if (current_word == word):
 #	print("{}\t{}\t{}".format(current_word, fname, current_offset));
 
-#pp = pprint.PrettyPrinter(indent=4);
-
-#pp.pprint(my_words);
-
-#fout = json.dumps(my_words);
-
-#print(fout);
-
 for word in my_words:
 	for filename in my_words[word]:
-		print("{}\t{}\t{}".format(word, filename, my_words[word][filename]));
+		# If the string is less than 6 characters and occurs more than 1000 times, omit
+		if (len(word) < 6 and len(my_words[word][filename].split()) > 1000):
+			#sys.stderr.write("{}\t{}\t{}\n".format(word, filename, len(my_words[word][filename].split()))); #, my_words[word][filename]));
+			continue;
+		else:
+			print("{}\t{}\t{}".format(word, filename, my_words[word][filename]));
+

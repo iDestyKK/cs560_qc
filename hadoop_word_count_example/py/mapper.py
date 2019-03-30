@@ -9,6 +9,7 @@ import os;
 punctuation='\'‘’"“”#$%&\\()*+,/:;<=>?@[]^_`{|}—~!?'
 
 #print ('{}\t{}'.format(os.environ['mapreduce_map_input_file'], 1));
+#f = "fuck";
 f = os.environ['mapreduce_map_input_file'];
 
 #for line in sys.stdin:
