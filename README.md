@@ -20,5 +20,5 @@ Design Choices <br> <br>
 	Step by step running: <br>
 		-Open up a terminal in Linux with the project downloaded. <br>
 		-Change your working directory to /mapreduce/ <br>
-        -Type the following command: sh execute.sh <list of files to run on> <br>
+        -Type the following command: ./execute.sh <list of files to run on> <br>
         -After MapReduce finishes, the querying script will run. You can now enter in a specific word or list of words to search for. (See the following section for screenshots of code working and example use cases in document.)
