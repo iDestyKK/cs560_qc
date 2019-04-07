@@ -8,12 +8,10 @@ if len(sys.argv) != 2:
     sys.exit();
 
 words = input("Enter word(s) to query: \n")
-#print(word)
 
 words = words.split(" ")
 for word in words:
-    #print("w: "+word+"\n")
-    found  = 0
+    found = 0
     fin = open(str(sys.argv[1]), "r")
     for num, line in enumerate(fin):
         line = line.split("\t")

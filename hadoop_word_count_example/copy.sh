@@ -16,5 +16,5 @@ if [ ! -e "$2" ]; then
 fi
 
 # Copy
-ssh -i "$2" "${1}" "mkdir ~/project_thing; chmod 700 ~/project_thing"
-scp -i "$2" -r py data experiment.sh setup.sh patch.sh "${1}:~/project_thing"
+ssh -i "$2" "${1}" "mkdir ~/mapreduce; chmod 700 ~/mapreduce"
+scp -i "$2" -r py data experiment.sh setup.sh patch.sh execute.sh "${1}:~/mapreduce"

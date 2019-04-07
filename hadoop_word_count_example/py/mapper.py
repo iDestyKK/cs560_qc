@@ -8,11 +8,9 @@ import os;
 
 punctuation='\'‘’"“”#$%&\\()*+,/:;<=>?@[]^_`{|}—~!?'
 
-#print ('{}\t{}'.format(os.environ['mapreduce_map_input_file'], 1));
-#f = "fuck";
+# Get the filename that we are currently reading in
 f = os.environ['mapreduce_map_input_file'];
 
-#for line in sys.stdin:
 for num, line in enumerate(sys.stdin):
     line = line.strip();
     words = line.split();
