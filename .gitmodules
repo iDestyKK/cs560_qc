@@ -1,0 +1,3 @@
+[submodule "http_server/misc/CN_GTAOSM"]
+	path = http_server/misc/CN_GTAOSM
+	url = https://iDestyKK@github.com/iDestyKK/CN_GTAOSM.git

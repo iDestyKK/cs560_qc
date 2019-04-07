@@ -1,0 +1,41 @@
+<html>
+	<head>
+		<title>Test of images</title>
+	</head>
+	<body>
+		<p>
+			This is a test page with images, both from cross-domain, and from
+			local. The tricky part is the local ones, as we are requesting a
+			non-html file from the server. Thus, the HTTP header can't say
+			"text/html". Should be fine... I suppose.
+		</p>
+		<table>
+			<tr>
+				<td></td>
+				<th>Cross-Domain</th>
+				<th>Local</th>
+			</tr>
+			<tr>
+				<th>Cheese (JPG)</th>
+				<td>
+					<img src = "https://img.webmd.com/dtmcms/live/webmd/consumer_assets/site_images/articles/health_tools/say_cheese_slideshow/getty_rf_photo_of_cheese_cubes_on_cutting_board.jpg" alt = "Cheese"/>
+				</td>
+				<td>
+					<img src = "img/cheese.jpg" alt = "Cheese"/>
+				</td>
+			</tr>
+			<tr>
+				<th>Cheese (GIF)</th>
+				<td>
+					<img src = "https://media.giphy.com/media/l1L2UkgpuiE4U/200.gif" alt = "Cheese"/>
+				</td>
+				<td>
+					<img src = "img/cheese.gif" alt = "Cheese"/>
+				</td>
+			</tr>
+		</table>
+		<p>
+			It works!
+		</p>
+	</body>
+</html>
