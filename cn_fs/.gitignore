@@ -1,0 +1,4 @@
+cn_fs
+*.cndisk
+.*.sw*
+test*
