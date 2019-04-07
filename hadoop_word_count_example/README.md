@@ -1,6 +1,8 @@
 # CS560 - MapReduce on Hadoop
 Clara Nguyen and Rachel Offutt
+
 Dr. Cao
+
 4/5/2019
 
 ## 1. Design Choices
@@ -8,7 +10,7 @@ Dr. Cao
 ### Language Choice
 We chose to implement this project in Python because data parsing, especially word parsing, is exponentially easier in Python and one of our team members has extensive experience in working with big data and text parsing in Python.
 
-###Configuration
+### Configuration
 We created a script file to run the mapReduce functions to allow for ease of use for the user. The user provides a list of input arguments in the form of file names they would like to run on.
 
 ### Setup of Output File
@@ -25,8 +27,8 @@ Step-by-Step procedure:
 2. Have SSH RSA keys set and ready so you can copy over to the Cloudlab instance.
 3. On your local machine, open up terminal and go to the directory that contains `copy.sh` from this project.
 4. Run `./copy.sh`. It takes 2 arguments:
-  1. `username@address`. This is your username and Hadoop cluster address.
-  2. Path to private RSA key. This is used to authenticate you to copy files over.
+    1. `username@address`. This is your username and Hadoop cluster address.
+    2. Path to private RSA key. This is used to authenticate you to copy files over.
 5. SSH into the Hadoop Cluster. The copy script from Step 4 has created a directory in your home directory called `mapreduce`, which stores all of the files in the experiment.
 6. Go into `~/mapreduce`. To simply run Hadoop on a series of files, run the following:
     ```bash
