@@ -1,0 +1,55 @@
+
+
+    \subsection{Language Choice}
+    We chose to implement this project in Python to gain more experience in this programming language and because of how well documented Python sockets are. 
+    \subsection{Configuration}
+    The application must be fine-tunable. As such, this webserver has a config JSON that is named config.json. This file is loaded at run-time and contains data on where essential directories are, as well as host and port values. This is what it may look like:
+    \begin{verbatim}
+    {
+        "page_root": "./htdocs",
+        "uploads": "./uploads",
+        "host": "",
+        "port": 28961
+    } \end{verbatim}
+    The following keys are required: \\
+page\_root - Root directory of all webpages. \\
+    uploads - Directory to store uploads.\\
+    host - Host address (Leave blank for "localhost")\\
+    port - Port number for server
+    \subsection{Python Sockets}
+    In this project, we are not allowed to use HTTP.sever, however, we were allowed and encouraged to use Python sockets. Since we previously decided that our programming language would be Python, the only way to complete this project would be with the use of Python sockets.
+    \subsection{Threading}
+        Modern browsers, such as Google Chrome and Firefox, send multiple requests per page load. Since the server had a single thread and was calling socket.recv to reconstruct a request at a time, it couldn't handle multiple requests being sent simultaneously.\\
+The packets being sent were often interlaced between the multiple requests. For instance, if Google Chrome sent 2 requests of 4096 bytes each, they both are broken up into 2 groups of 4 requests of 1024 bytes each, which are sent to the server. But they are sent all in one stream, and the server gets them all in a first-come, first-serve (queue) way.\\
+This means that the server could receive a few packets of the first request, and then a few for the second. The only guarantee is the order of the packets received for each request. So you will always get the first fragment of the first request before the second.\\
+When a single-threaded server is trying to parse packets for the first request, it will get stuck at waiting if it gets a fragment from the second request. \\
+The solution wasn't so obvious, and Google doesn't directly state it either. But the solution was trivial... make the server multithreaded. This allowed the requests to be split up on a per-thread basis, meaning that, while the socket.recv function was blocked on some threads, other threads were able to run it and receive bytes for their respective requests and reconstruct it. \\
+The multithreaded solution also has the positive effect of allowing multiple users to load pages and other content simultaneously.
+    \subsection{Directory Listing}
+    If a directory does not feature an index.html file, then the server will not throw a 404, but rather create a webpage on-the-fly and return it instead. This page will list all files in the current directory, links to all of them, and also a link to go up a directory. A few issues were faced when dealing with directory listing. Firstly, if the URL is simply the directory without the final /, then all paths on the page that feature a .. will associate the directory as one higher. For instance, consider the URL: http://localhost:28961/test\_dir/test. Suppose that test\_dir/test is a directory. \\
+    The link in there to go to the Parent Directory is defined as ../. If it's correctly defined, it should point to http://localhost:28961/test\_dir. However, because there is no final / in the URL, the link will point to http://localhost:28961/ instead. \\
+    The problem is because the browser thinks that the test is a file instead of a directory. To be fair, we do generate a page on-the-fly, so it makes sense that the browser makes this assumption. The solution is to simply slap on a / at the end of the URL.\\
+However, we can't just go in and do a url += '/'. The browser's URL bar won't update. And even if we force it through Javascript, the links won't update. What do we do? Return Status Code 308 and tell it to redirect the page to the same page with the / appended on.\\
+The issue lies in the file being read in. The type of the file could be of a binary type like jpg, mp3, wav, etc. Thus, the read procedure of the server had to be rewritten to construct the HTTP response as a raw buffer of bytes. Whenever that issue was fixed, images loaded flawlessly. \\
+As a positive side effect, MIME types such as audio/wave, audio/ogg, etc, were also implemented. These implementations may be found on the Media Test Page and Image Test Page.
+    \subsection{File Uploads}
+    The server is capable of accepting multipart/form-data entries via POST. It does this by receiving packets all at once via the following:
+    \begin{verbatim}
+    request = client_connection.recv(content_length, socket.MSG_WAITALL);
+    \end{verbatim}
+The procedure of reading all bytes this way allows for the server to reconstruct the file and dump it in the upload directory, specified by the configuration JSON file on the server's bootup. When a file is successfully uploaded, it will send a response to the client to load the requested page. \\
+There is an alternate way to download files, via calling recv multiple times with a size of 1024 and reconstructing the buffer manually. However, the server has had more success with trying to receive all of the bytes at once with the socket.MSG\_WAITALL flag passed in. This makes this server UNIX-only, unfortunately.
+    \subsection{ Matching GET and POST requests via Regex}
+    When the server receives a GET or POST request, we want to extract the data from it to figure out what to do next. Requests like these have headers in the first line that may look like this:\\
+     \begin{verbatim}
+        GET /index.html HTTP...
+        POST /index.html HTTP...
+    \end{verbatim}
+    As such, the following Regex expressions are utilised:
+    \begin{verbatim}
+        import re
+        re.findall("GET \/([^?]*?)[ ?#].*HTTP", req_text);  # GET
+        re.findall("POST \/([^?]*?)[ ?#].*HTTP", req_text); # POST
+    \end{verbatim}
+These expressions capture the path of the URL that the user is wanting to go to after the request has been processed. Usually it's for loading a page at a specified path.
+    
