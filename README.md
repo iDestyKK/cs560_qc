@@ -14,6 +14,7 @@ For example, a project from Spring 2019 would be something like `sp19_01_http_se
 ```diff
 + 1 - HTTP Webserver (http_server)
 + 2 - Hadoop back-end for looking up words in huge files (inverted_indexer)
+- 3 - Performance comparison between various K-V storage software (query_compare - WIP)
 ```
 
 ### Spring 2018
