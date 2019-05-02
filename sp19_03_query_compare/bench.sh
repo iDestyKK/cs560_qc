@@ -292,6 +292,30 @@ printf "\n"
 	# 3.5. redis via Node.JS Line                                          {{{2
 	# -------------------------------------------------------------------------
 
+	TEST="redis"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching REDIS via nodejs..."
+
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i $CASES
+
+				let "k = i * INC"
+				stress_out "redis/main.js" $k "results/${TEST}/redis_results.${j}.txt"
+			done
+			printf "\n"
+		done
+	fi
+
 	# -------------------------------------------------------------------------
 	# 3.6. redis via Command Line                                          {{{2
 	# -------------------------------------------------------------------------
