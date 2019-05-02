@@ -27,10 +27,73 @@ red=$(tput setaf 1)
 green=$(tput setaf 2)
 yellow=$(tput setaf 3)
 normal=$(tput sgr 0)
+bold=$(tput bold)
+
+if [ $# -eq 3 ]; then
+	CASES=$1
+	INC=$2
+	REPEAT=$3
+elif [ $# -eq 0 ]; then
+	CASES=1000
+	INC=100
+	REPEAT=5
+else
+	printf "Usage: %s [cases increment test_repeat]\n" "$0"
+	exit 1
+fi
+
+# Print out our fancy prompt thing
+printf "%s\n\n%s (%s, %s):\n\n" \
+	"CS560 - Key-Value Comparison Bench Script" \
+	"Bench Settings" \
+	"${green}${bold}GREEN${normal}=above default" \
+	"${yellow}${bold}YELLOW${normal}=under default"
+
+printf "  %-20s     CONFIG      DEFAULT  \n" " "
+
+# Cases Number
+if [ $CASES -gt 1000 ]; then
+	printf "  %-20s [ ${green}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Cases Num:" $CASES 1000
+elif [ $CASES -lt 1000 ]; then
+	printf "  %-20s [ ${yellow}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Cases Num:" $CASES 1000
+else
+	printf "  %-20s [ %8d ] [ %8d ]\n" \
+		"Cases Num:" $CASES 1000
+fi
+
+# Key Incrementation
+if [ $INC -gt 100 ]; then
+	printf "  %-20s [ ${green}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Key Increment:" $INC 100
+elif [ $INC -lt 100 ]; then
+	printf "  %-20s [ ${yellow}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Key Increment:" $INC 100
+else
+	printf "  %-20s [ %8d ] [ %8d ]\n" \
+		"Key Increment:" $INC 100
+fi
+
+# Test Repeats
+if [ $REPEAT -gt 5 ]; then
+	printf "  %-20s [ ${green}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Test Repeat:" $REPEAT 5
+elif [ $REPEAT -lt 5 ]; then
+	printf "  %-20s [ ${yellow}${bold}%8d${normal} ] [ %8d ]\n" \
+		"Test Repeat:" $REPEAT 5
+else
+	printf "  %-20s [ %8d ] [ %8d ]\n" \
+		"Test Repeat:" $REPEAT 5
+fi
+
+printf "\n"
 
 # -----------------------------------------------------------------------------
 # 2. Checks                                                                {{{1
 # -----------------------------------------------------------------------------
+
+	printf "Running Checks...\n"
 
 	# -------------------------------------------------------------------------
 	# 2.1. gen_input                                                       {{{2
@@ -115,6 +178,8 @@ normal=$(tput sgr 0)
 # 3. Execution                                                             {{{1
 # -----------------------------------------------------------------------------
 
+	printf "\nRunning Benchmarks...\n"
+
 	# -------------------------------------------------------------------------
 	# 3.1. Helper Functions                                                {{{2
 	# -------------------------------------------------------------------------
@@ -157,14 +222,14 @@ normal=$(tput sgr 0)
 			"%-40s\n" \
 			"[${green}BENCH${normal}] Benching MYSQL via nodejs..."
 
-		for j in {1..5}; do
-			for i in {1..1000}; do
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
 				printf \
 					"\r        %-33s[ %4d / %4d ]" \
 					"- Run ${j}..." \
-					$i 1000
+					$i $CASES
 
-				let "k = i * 100"
+				let "k = i * INC"
 				stress_out "mysql/main.js" $k "results/${TEST}/mysql_results.${j}.txt"
 			done
 			printf "\n"
@@ -187,14 +252,14 @@ normal=$(tput sgr 0)
 			"%-40s\n" \
 			"[${green}BENCH${normal}] Benching MYSQL via command line..."
 
-		for j in {1..5}; do
-			for i in {1..1000}; do
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
 				printf \
 					"\r        %-33s[ %4d / %4d ]" \
 					"- Run ${j}..." \
-					$i 1000
+					$i $CASES
 
-				let "k = i * 100"
+				let "k = i * INC"
 
 				# Now let's go an extra step...
 				./c/gen_input $k 0 \
@@ -241,14 +306,14 @@ normal=$(tput sgr 0)
 			"%-40s\n" \
 			"[${green}BENCH${normal}] Benching REDIS via command line..."
 
-		for j in {1..5}; do
-			for i in {1..1000}; do
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
 				printf \
 					"\r        %-33s[ %4d / %4d ]" \
 					"- Run ${j}..." \
-					$i 1000
+					$i $CASES
 
-				let "k = i * 100"
+				let "k = i * INC"
 
 				echo "MULTI" > OUT
 				echo "TIME" >> OUT
