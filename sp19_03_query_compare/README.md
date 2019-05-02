@@ -27,10 +27,22 @@ without overhead of other parts affecting it.
 
 ## What's planned
 ### Database Storage Systems
-```diff
-- SQL
-- Radis
-```
+| | SQL | Radis | ??? |
+| ---: | :---: | :---: | :---: |
+| Node.js - Single Query | ✅ | ❌ | ❓ |
+| Node.js - Multi-Query | ❌ | ❌ | ❓ |
+| Command Line - Single Query | ✅ | ❌ | ❓ |
+| Command Line - Multi-Query | ❌ | ❌ | ❓ |
+
+#### Notes
+* ***Single Query** refers to inserting all keys in a single query. **Multi-Query** refers to inserting one key per query.*
+* *Each test has two variants: **Node.js**, being a widely used server-side Javascript interface, as well as the **Command Line** applications compiled in C and distributed via official Arch-Linux repositories. Performance between the two is measured for a potential speed advantage one may have over another.*
+
+### Tests Completed
+| | SQL | Radis | ??? |
+| ---: | :---: | :---: | :---: |
+| HDD | ✅ | ❌ | ❓ |
+| SSD | ❌ | ❌ | ❓ |
 
 ### Procedure
 ```diff
