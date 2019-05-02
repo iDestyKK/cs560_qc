@@ -135,4 +135,48 @@ normal=$(tput sgr 0)
 		printf "[  ${green}OK${normal}  ]\n"
 	fi
 
+	# -------------------------------------------------------------------------
+	# 2.5. "redis" via Node.JS                                             {{{2
+	# -------------------------------------------------------------------------
+
+	if [ -e "results/redis" ]; then
+		printf "[ ${green}GEN${normal} ] %-40s" "redis via nodejs..."
+
+		# Let's go into the directory
+		cd "results/redis"
+		mkdir "tmp"
+
+		for F in *.txt; do
+			cat "$F" | sed 's/.* \(.*\)ms/\1/' > "tmp/$F"
+		done
+
+		# Use paste to make the CSV
+		paste "tmp/"*".txt" -d "," > "../csv/redis.csv"
+		
+		# Clean up and go back
+		rm -rf "tmp"
+		cd - > /dev/null
+
+		printf "[  ${green}OK${normal}  ]\n"
+	fi
+
+	# -------------------------------------------------------------------------
+	# 2.6. "redis" via Command Line                                        {{{2
+	# -------------------------------------------------------------------------
+
+	if [ -e "results/redis_cmd" ]; then
+		printf "[ ${green}GEN${normal} ] %-40s" "redis via Command Line..."
+
+		# Let's go into the directory
+		cd "results/redis_cmd"
+
+		# Use paste to make the CSV
+		paste *".txt" -d "," > "../csv/redis_cmd.csv"
+		
+		# Clean up and go back
+		cd - > /dev/null
+
+		printf "[  ${green}OK${normal}  ]\n"
+	fi
+
 	# 2}}}
