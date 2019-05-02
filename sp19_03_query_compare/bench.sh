@@ -69,7 +69,24 @@ normal=$(tput sgr 0)
 	fi
 
 	# -------------------------------------------------------------------------
-	# 2.3. "mysql/main.js"                                                 {{{2
+	# 2.3. "redis-cli" Command                                             {{{2
+	# -------------------------------------------------------------------------
+
+	# Check "node"
+	printf "[${yellow}CHECK${normal}] %-40s" "\"redis-cli\" command..."
+	if [ ! $(command -v redis-cli) ]; then
+		printf "[${red}FAILED${normal}]\n"
+		printf \
+			"%s %s\n"\
+			"\"redis-cli\" is not a valid command on this system." \
+			"Do you have redis installed?"
+		exit 1
+	else
+		printf "[  ${green}OK${normal}  ]\n"
+	fi
+
+	# -------------------------------------------------------------------------
+	# 2.4. "mysql/main.js"                                                 {{{2
 	# -------------------------------------------------------------------------
 
 	# Check "mysql/main.js"
@@ -81,7 +98,7 @@ normal=$(tput sgr 0)
 	fi
 
 	# -------------------------------------------------------------------------
-	# 2.4. "redis/main.js"                                                 {{{2
+	# 2.5. "redis/main.js"                                                 {{{2
 	# -------------------------------------------------------------------------
 
 	# Check "redis/main.js"
@@ -127,29 +144,32 @@ normal=$(tput sgr 0)
 	mkdir "results"
 
 	# -------------------------------------------------------------------------
-	# 3.3. "mysql/main.js"                                                 {{{2
+	# 3.3. mysql via Node.JS                                               {{{2
 	# -------------------------------------------------------------------------
 
-#	TEST="mysql"
-#	mkdir "results/${TEST}"
-#	j=0
-#
-#	printf \
-#		"%-40s\n" \
-#		"[${green}BENCH${normal}] Benching MYSQL via nodejs..."
-#
-#	for j in {1..5}; do
-#		for i in {1..1000}; do
-#			printf \
-#				"\r        %-33s[ %4d / %4d ]" \
-#				"- Run ${j}..." \
-#				$i 1000
-#
-#			let "k = i * 100"
-#			stress_out "mysql/main.js" $k "results/${TEST}/mysql_results.${j}.txt"
-#		done
-#		printf "\n"
-#	done
+	TEST="mysql"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching MYSQL via nodejs..."
+
+		for j in {1..5}; do
+			for i in {1..1000}; do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i 1000
+
+				let "k = i * 100"
+				stress_out "mysql/main.js" $k "results/${TEST}/mysql_results.${j}.txt"
+			done
+			printf "\n"
+		done
+	fi
 
 	# -------------------------------------------------------------------------
 	# 3.4. mysql via Command Line                                          {{{2
@@ -158,46 +178,109 @@ normal=$(tput sgr 0)
 	# mysql --user=cs560_usr --password=yes cs560_test
 
 	TEST="mysql_cmd"
-	mkdir "results/${TEST}"
-	j=0
 
-	printf \
-		"%-40s\n" \
-		"[${green}BENCH${normal}] Benching MYSQL via command line..."
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
 
-	for j in {1..5}; do
-		for i in {1..1000}; do
-			printf \
-				"\r        %-33s[ %4d / %4d ]" \
-				"- Run ${j}..." \
-				$i 1000
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching MYSQL via command line..."
 
-			let "k = i * 100"
+		for j in {1..5}; do
+			for i in {1..1000}; do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i 1000
 
-			# Now let's go an extra step...
-			./c/gen_input $k 0 \
-				| sed 's/\(.*\) \(.*\)/(\1, \2)/' \
-				| tr '\n' ' ' \
-				| sed \
-					-e 's/) (/), (/g' \
-					-e 's/^/INSERT into test (t_key, t_value) VALUES /' \
-					-e 's/ $/;\n/' \
-				> OUT
+				let "k = i * 100"
 
-			# Obliterate the current table
-			echo "DELETE from test;" \
-				| mysql --user=cs560_usr --password=yes cs560_test
+				# Now let's go an extra step...
+				./c/gen_input $k 0 \
+					| sed 's/\(.*\) \(.*\)/(\1, \2)/' \
+					| tr '\n' ' ' \
+					| sed \
+						-e 's/) (/), (/g' \
+						-e 's/^/INSERT into test (t_key, t_value) VALUES /' \
+						-e 's/ $/;\n/' \
+					> OUT
 
-			# Insert in.
-			mysql -vvv --user=cs560_usr --password=yes cs560_test \
-				<  OUT \
-				|  grep 'sec' \
-				>> "results/${TEST}/mysql_results.${j}.txt"
+				# Obliterate the current table
+				echo "DELETE from test;" \
+					| mysql --user=cs560_usr --password=yes cs560_test
 
-			# Clean up
-			rm -f OUT
+				# Insert in.
+				mysql -vvv --user=cs560_usr --password=yes cs560_test \
+					<  OUT \
+					|  grep 'sec' \
+					>> "results/${TEST}/mysql_results.${j}.txt"
+
+				# Clean up
+				rm -f OUT
+			done
+			printf "\n"
 		done
-		printf "\n"
-	done
+	fi
+
+	# -------------------------------------------------------------------------
+	# 3.5. redis via Node.JS Line                                          {{{2
+	# -------------------------------------------------------------------------
+
+	# -------------------------------------------------------------------------
+	# 3.6. redis via Command Line                                          {{{2
+	# -------------------------------------------------------------------------
+
+	TEST="redis_cmd"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching REDIS via command line..."
+
+		for j in {1..5}; do
+			for i in {1..1000}; do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i 1000
+
+				let "k = i * 100"
+
+				echo "MULTI" > OUT
+				echo "TIME" >> OUT
+
+				# Now let's go an extra step...
+				./c/gen_input $k 0 \
+					| tr '\n' ' ' \
+					| sed \
+						-e 's/^/mset /' \
+						-e 's/$/\n/' \
+					>> OUT
+
+				echo "TIME" >> OUT
+				echo "EXEC" >> OUT
+
+				# Obliterate the current table
+				echo "flushall" | redis-cli > /dev/null
+
+				# Insert in.
+				redis-cli \
+					< OUT \
+					| tail -n 5 \
+					| grep -v "OK" \
+					| tr '\n' ' ' \
+					| awk '{a = $1 + ($2 / 1000000); b = $3 + ($4 / 1000000); printf("%.09f\n", b - a); }' \
+					>> "results/${TEST}/redis_results.${j}.txt"
+
+				# Clean up
+				rm -f OUT
+			done
+			printf "\n"
+		done
+	fi
 
 	# 2}}}

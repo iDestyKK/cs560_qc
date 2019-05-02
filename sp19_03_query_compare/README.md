@@ -31,7 +31,7 @@ without overhead of other parts affecting it.
 | ---: | :---: | :---: | :---: |
 | Node.js - Single Query | ✅ | ❌ | ❓ |
 | Node.js - Multi-Query | ❌ | ❌ | ❓ |
-| Command Line - Single Query | ✅ | ❌ | ❓ |
+| Command Line - Single Query | ✅ | ✅ | ❓ |
 | Command Line - Multi-Query | ❌ | ❌ | ❓ |
 
 #### Notes
