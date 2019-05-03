@@ -183,6 +183,27 @@ normal=$(tput sgr 0)
 	# 2.7. "mysql" via Node.JS (Find)                                      {{{2
 	# -------------------------------------------------------------------------
 
+	if [ -e "results/mysql_find" ]; then
+		printf "[ ${green}GEN${normal} ] %-40s" "mysql via nodejs (Find)..."
+
+		# Let's go into the directory
+		cd "results/mysql_find"
+		mkdir "tmp"
+
+		for F in *.txt; do
+			cat "$F" | sed 's/.* \(.*\)ms/\1/' > "tmp/$F"
+		done
+
+		# Use paste to make the CSV
+		paste "tmp/"*".txt" -d "," > "../csv/mysql_find.csv"
+		
+		# Clean up and go back
+		rm -rf "tmp"
+		cd - > /dev/null
+
+		printf "[  ${green}OK${normal}  ]\n"
+	fi
+
 	# -------------------------------------------------------------------------
 	# 2.8. "mysql" via Command Line (Find)                                 {{{2
 	# -------------------------------------------------------------------------
@@ -211,6 +232,27 @@ normal=$(tput sgr 0)
 	# -------------------------------------------------------------------------
 	# 2.9. "redis" via Node.JS (Find)                                      {{{2
 	# -------------------------------------------------------------------------
+
+	if [ -e "results/redis_find" ]; then
+		printf "[ ${green}GEN${normal} ] %-40s" "redis via nodejs (Find)..."
+
+		# Let's go into the directory
+		cd "results/redis_find"
+		mkdir "tmp"
+
+		for F in *.txt; do
+			cat "$F" | sed 's/.* \(.*\)ms/\1/' > "tmp/$F"
+		done
+
+		# Use paste to make the CSV
+		paste "tmp/"*".txt" -d "," > "../csv/redis_find.csv"
+		
+		# Clean up and go back
+		rm -rf "tmp"
+		cd - > /dev/null
+
+		printf "[  ${green}OK${normal}  ]\n"
+	fi
 
 	# -------------------------------------------------------------------------
 	# 2.10. "redis" via Command Line (Find)                                {{{2
