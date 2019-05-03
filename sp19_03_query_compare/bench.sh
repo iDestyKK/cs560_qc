@@ -393,6 +393,37 @@ printf "\n"
 	# Set the table to have these values.
 	mysql --user=cs560_usr --password=yes cs560_test < OUT
 
+	# Now begin the real test
+	TEST="mysql_find"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching MYSQL via nodejs (Find)..."
+
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i $CASES
+
+				let "k = i * INC"
+
+				# No "stress_out" here. Just a simple command.
+				node \
+					"mysql_find/main.js" \
+					V \
+					$k \
+					>> "results/${TEST}/mysql_results.${j}.txt"
+			done
+			printf "\n"
+		done
+	fi
+
 	# -------------------------------------------------------------------------
 	# 3.8. mysql via Command Line (Find)                                   {{{2
 	# -------------------------------------------------------------------------
