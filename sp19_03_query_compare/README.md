@@ -126,7 +126,7 @@ UNIX> redis-cli
 You should start `redis-server` in a seperate terminal session, as it should
 run in the background.
 
-## 3. bench.sh
+### 3. bench.sh
 The `bench.sh` shell script is the heart of how benchmarking is done in this
 project. It will check for the following 5 things:
 * Whether **c/gen_input** was compiled (and compile it if it doesn't exist)
@@ -158,7 +158,7 @@ directories in it which contain text file data respective to each test. It will
 contain data such as `Inserted 400 keys in 23ms` or sometimes just millisecond
 execution time.
 
-## 4. gen\_csv.sh
+### 4. gen\_csv.sh
 This is to be run right after **bench.sh** completes. It will generate CSV
 files for each of the executables that were benchmarked. These can be thrown
 into programs such as Microsoft Excel, where you can take the averages and then
