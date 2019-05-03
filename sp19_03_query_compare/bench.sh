@@ -484,6 +484,37 @@ printf "\n"
 			-e 's/$/\n/' \
 		| redis-cli > /dev/null
 
+	# Now do the actual testing
+	TEST="redis_find"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching REDIS via nodejs (Find)..."
+
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i $CASES
+
+				let "k = i * INC"
+
+				# No "stress_out" here. Just a simple command.
+				node \
+					"redis_find/main.js" \
+					V \
+					$k \
+					>> "results/${TEST}/redis_results.${j}.txt"
+			done
+			printf "\n"
+		done
+	fi
+
 	# -------------------------------------------------------------------------
 	# 3.10. redis via Command Line (Find)                                  {{{2
 	# -------------------------------------------------------------------------
