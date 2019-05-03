@@ -125,3 +125,42 @@ UNIX> redis-cli
 
 You should start `redis-server` in a seperate terminal session, as it should
 run in the background.
+
+## 3. bench.sh
+The `bench.sh` shell script is the heart of how benchmarking is done in this
+project. It will check for the following 5 things:
+* Whether **c/gen_input** was compiled (and compile it if it doesn't exist)
+* If **node** is a valid command
+* If **redis-cli** is a valid command
+* If **mysql/main.js** exists
+* If **redis/main.js** exists
+
+If it passes all 5 of these tests, it will begin running benchmarks and put the
+results in a new directory called `results` in the form of text files.
+
+The program takes 3 parameters but if none are specified, it uses the default
+benchmark configuration.
+```bash
+UNIX> ./bench.sh case_num increment repeat
+```
+These are rather poorly named. So here's what they mean:
+* **case_num** - The number of test cases we put the program through, getting incrementally harder and harder as more keys are added to the input.
+* **increment** - The number of keys added to the input per test case. So if this was 100, each test case would add 100 more keys to the input.
+* **repeat** - How many times the benchmark is repeated for each program. This is so the user can later take the average of results to eliminate noise.
+
+The default configuration is:
+```bash
+UNIX> ./bench.sh 1000 100 5
+```
+
+When the benchmarking is complete, the `results` directory will have several
+directories in it which contain text file data respective to each test. It will
+contain data such as `Inserted 400 keys in 23ms` or sometimes just millisecond
+execution time.
+
+## 4. gen\_csv.sh
+This is to be run right after **bench.sh** completes. It will generate CSV
+files for each of the executables that were benchmarked. These can be thrown
+into programs such as Microsoft Excel, where you can take the averages and then
+graph them. It will separate each run (via **repeat**) per column, and the
+files will be stores in `results/csv`.
