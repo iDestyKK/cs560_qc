@@ -209,7 +209,7 @@ printf "\n"
 	mkdir "results" 2> /dev/null
 
 	# -------------------------------------------------------------------------
-	# 3.3. mysql via Node.JS                                               {{{2
+	# 3.3. mysql via Node.JS (Insert)                                      {{{2
 	# -------------------------------------------------------------------------
 
 	TEST="mysql"
@@ -237,7 +237,7 @@ printf "\n"
 	fi
 
 	# -------------------------------------------------------------------------
-	# 3.4. mysql via Command Line                                          {{{2
+	# 3.4. mysql via Command Line (Insert)                                 {{{2
 	# -------------------------------------------------------------------------
 
 	# mysql --user=cs560_usr --password=yes cs560_test
@@ -289,7 +289,7 @@ printf "\n"
 	fi
 
 	# -------------------------------------------------------------------------
-	# 3.5. redis via Node.JS Line                                          {{{2
+	# 3.5. redis via Node.JS Line (Insert)                                 {{{2
 	# -------------------------------------------------------------------------
 
 	TEST="redis"
@@ -317,7 +317,7 @@ printf "\n"
 	fi
 
 	# -------------------------------------------------------------------------
-	# 3.6. redis via Command Line                                          {{{2
+	# 3.6. redis via Command Line (Insert)                                 {{{2
 	# -------------------------------------------------------------------------
 
 	TEST="redis_cmd"
@@ -371,5 +371,149 @@ printf "\n"
 			printf "\n"
 		done
 	fi
+
+	# -------------------------------------------------------------------------
+	# 3.7. mysql via Node.JS (Find)                                        {{{2
+	# -------------------------------------------------------------------------
+
+	# Prepare MySQL Database for rapid finds.
+	echo "DELETE from test;" > OUT
+
+	./c/gen_input 100000 0 > V
+
+	cat "V" \
+		| sed 's/\(.*\) \(.*\)/(\1, \2)/' \
+		| tr '\n' ' ' \
+		| sed \
+			-e 's/) (/), (/g' \
+			-e 's/^/INSERT into test (t_key, t_value) VALUES /' \
+			-e 's/ $/;\n/' \
+		>> OUT
+
+	# Set the table to have these values.
+	mysql --user=cs560_usr --password=yes cs560_test < OUT
+
+	# -------------------------------------------------------------------------
+	# 3.8. mysql via Command Line (Find)                                   {{{2
+	# -------------------------------------------------------------------------
+
+	# Assume V exists.
+	TEST="mysql_cmd_find"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching MySQL (Find) via command line..."
+
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i $CASES
+
+				let "k = i * INC"
+
+				# Take "K" keys out of the file and find them in the database.
+				cat V \
+					| head -n $k \
+					| sed 's/\(.*\) \(.*\)/\1/' \
+					| tr '\n' ',' \
+					| sed \
+						-e 's/,/, /g' \
+						-e 's/, $/)\n/' \
+						-e 's/^/SELECT * FROM test WHERE t_key IN (/' \
+					| mysql -vvv --user=cs560_usr --password=yes cs560_test \
+					|  grep 'sec' \
+					>> "results/${TEST}/mysql_results.${j}.txt"
+
+				# Clean up
+				rm -f OUT
+			done
+			printf "\n"
+		done
+	fi
+
+	# -------------------------------------------------------------------------
+	# 3.9. redis via Node.JS (Find)                                        {{{2
+	# -------------------------------------------------------------------------
+
+	# Prepare Redis Database for rapid finds.
+	echo "flushall" | redis-cli > /dev/null
+
+	./c/gen_input 100000 0 > V
+
+	cat V \
+		| tr '\n' ' ' \
+		| sed \
+			-e 's/^/mset /' \
+			-e 's/$/\n/' \
+		| redis-cli > /dev/null
+
+	# -------------------------------------------------------------------------
+	# 3.10. redis via Command Line (Find)                                  {{{2
+	# -------------------------------------------------------------------------
+
+	TEST="redis_cmd_find"
+
+	if [ ! -e "results/${TEST}" ]; then
+		mkdir "results/${TEST}"
+		j=0
+
+		printf \
+			"%-40s\n" \
+			"[${green}BENCH${normal}] Benching REDIS via command line..."
+
+		for j in $(seq 1 1 $REPEAT); do
+			for i in $(seq 1 1 $CASES); do
+				printf \
+					"\r        %-33s[ %4d / %4d ]" \
+					"- Run ${j}..." \
+					$i $CASES
+
+				let "k = i * INC"
+
+				echo "MULTI" > OUT
+				echo "TIME" >> OUT
+
+				# Now let's go an extra step...
+				cat V \
+					| sed 's/\(.*\) \(.*\)/\1/' \
+					| head -n $k \
+					| tr '\n' ' ' \
+					| sed \
+						-e 's/^/mget /' \
+						-e 's/$/\n/' \
+					>> OUT
+
+				echo "TIME" >> OUT
+				echo "EXEC" >> OUT
+
+				# Insert in.
+				redis-cli \
+					< OUT \
+					> OUT_T
+
+				# Construct the time string
+				cat OUT_T | head -n 6 | tail -n 2 >  OUT_TI
+				cat OUT_T             | tail -n 2 >> OUT_TI
+
+				cat OUT_TI \
+					| tr '\n' ' ' \
+					| awk '{a = $1 + ($2 / 1000000); b = $3 + ($4 / 1000000); printf("%.09f\n", b - a); }' \
+					>> "results/${TEST}/redis_results.${j}.txt"
+
+				# Clean up
+				rm -f OUT OUT_T OUT_TI
+			done
+			printf "\n"
+		done
+	fi
+
+	# Clean up
+	rm -f V
 
 	# 2}}}
