@@ -112,18 +112,6 @@ Redis's advantage of being in memory, again, allows it to come out ahead of MySQ
 
 Both Redis and MySQL suffer and show different results when using wrapper libraries and packages in Node.JS to communicate with the respective database softwares. However, MySQL has another interesting performance spike within the 20000-50000 key range. This confirms the suspicion of the impact in performance being caused by software. 
 
-### Conclusions
-| | MySQL (HDD) | MySQL (SSD) | Redis (HDD) | Redis (SSD) |
-| ---: | :---: | :---: | :---: | :---: |
-| Insertion (via Command Line) | 2.1234 | 0.7448 | 0.0518 | 0.0497 |
-| Find (via Command Line) | 0.2314 | 0.2294 | 0.0326 | 0.0356 |
-| Insertion (via Node.JS) | 2.5508 | 1.0336 | 0.2500 | 0.2370 |
-| Find (via Node.JS) | 0.3922 | 0.3798 | 0.2314 | 0.2228 |
-
-**Table 1:** Performance of MySQL and Redis on HDD and SSDs with 100000 keys in all queries.
-
-Overall, Redis outperforms MySQL in a simple key-value pair insertion and finding of any size, with MySQL showing a larger performance penalty as the key count grows. When comparing command line to an external wrapper such as with software like Node.JS, performance in every possible field took a hit, regardless of whether the hardware was with an SSD or HDD. This appears to be the case with any number of keys as well, but only for MySQL insertions.
-
 ## Analysis 2: HDD vs. SSD
 In our previous analysis, we demonstrated some differences between HDD and SSD performance, mainly for the sake of demonstrating MySQL's penalties while inserting on a HDD.
 <p align="center">
@@ -161,3 +149,15 @@ Part of the reason for this similar performance is because of how MySQL internal
 </p>
 
 Redis's performance between a HDD and an SSD is irrelevant, as it is in-memory. Interestingly, the find operation yields a faster time for the HDD benchmark as opposed to the SSD benchmark. However, when run on Node.JS, this penalty goes away. It's possible that this is due to other running software or RAM restrictions on the test bench, rather than between HDD and SSD.
+
+## Conclusions
+| | MySQL (HDD) | MySQL (SSD) | Redis (HDD) | Redis (SSD) |
+| ---: | :---: | :---: | :---: | :---: |
+| Insertion (via Command Line) | 2.1234 | 0.7448 | 0.0518 | 0.0497 |
+| Find (via Command Line) | 0.2314 | 0.2294 | 0.0326 | 0.0356 |
+| Insertion (via Node.JS) | 2.5508 | 1.0336 | 0.2500 | 0.2370 |
+| Find (via Node.JS) | 0.3922 | 0.3798 | 0.2314 | 0.2228 |
+
+**Table 1:** Performance of MySQL and Redis on HDD and SSDs with 100000 keys in all queries (in seconds).
+
+Overall, Redis outperforms MySQL in a simple key-value pair insertion and finding of any size, with MySQL showing a larger performance penalty as the key count grows. When comparing command line to an external wrapper such as with software like Node.JS, performance in every possible field took a hit, regardless of whether the hardware was with an SSD or HDD. This appears to be the case with any number of keys as well, but only for MySQL insertions. The differences between SSD and HDD only mattered for MySQL insertion queries, as no notable difference was found between finding a key via MySQL, as well as Redis in its entirety.
