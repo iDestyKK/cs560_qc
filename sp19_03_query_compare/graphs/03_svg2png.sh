@@ -10,11 +10,11 @@ for D in *; do
 	cd "$D"
 
 	# Clean up
-	rm -rf "svg"
-	mkdir "svg"
+	rm -rf "png"
+	mkdir "png"
 
 	for F in *".pdf"; do
-		pdf2svg "$F" "svg/${F/pdf/svg}"
+		convert "svg/${F/pdf/svg}" "png/${F/pdf/png}"
 	done
 
 	# Go back
