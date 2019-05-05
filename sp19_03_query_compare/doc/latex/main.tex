@@ -6,6 +6,7 @@
 \overrideIEEEmargins
 \usepackage{booktabs}
 \usepackage[table,xcdraw]{xcolor}
+\usepackage{svg}
 \usepackage{atbegshi}%
 \renewcommand*{\thefootnote}{\fnsymbol{footnote}}http://ctan.org/pkg/atbegshi
 \AtBeginDocument{\AtBeginShipoutNext{\AtBeginShipoutDiscard}}
@@ -264,14 +265,16 @@ For Redis, the exact query looks like this:
 \end{verbatim}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{1.png}
+    % \includegraphics[width=0.5\textwidth]{1.svg}
+    \includesvg[width=0.5\textwidth]{svg/1}
     \caption{Performance between MySQL and Redis performing insertion on a HDD.}
     \label{fig:mesh1}
 \end{figure}
 Knowing that Redis performs in memory as opposed to MySQL makes it much, much faster. At 100000 key-value pairs inserted, Redis performs at 0.0518 seconds, whereas MySQL performs at around 2.1234 seconds. While these results aren't surprising, as Redis is 40.9923x faster than MySQL, we can attempt to do better by switching to a Solid-State Drive (SSD).
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{2.png}
+    %\includegraphics[width=0.5\textwidth]{2.png}
+    \includesvg[width=0.5\textwidth]{svg/2}
     \caption{Performance between MySQL and Redis performing insertion on an SSD.}
     \label{fig:mesh1}
 \end{figure}
@@ -289,14 +292,16 @@ For Redis, the exact query look like this:
 \end{verbatim}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{3.png}
+    %\includegraphics[width=0.5\textwidth]{3.png}
+    \includesvg[width=0.5\textwidth]{svg/3}
     \caption{Performance between MySQL and Redis performing finds on a HDD.}
     \label{fig:mesh1}
 \end{figure}
 Redis's advantage of being in memory, again, allows it to come out ahead of MySQL in terms of reading data. However, there is an interesting spike in performance of MySQL that persists after adding around 23700 or more keys into the query. This performance also holds true in the SSD performance, which leads us to believe that this bottleneck is software-related in the command line application for MySQL. Thankfully, we can actually test if this holds true by running the same tests in Node.JS rather than the C native apps to see if we get different results.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{4.png}
+    %\includegraphics[width=0.5\textwidth]{4.png}
+    \includesvg[width=0.5\textwidth]{svg/4}
     \caption{Performance between MySQL and Redis performing finds on a HDD via Node.JS.}
     \label{fig:mesh1}
 \end{figure}
@@ -305,7 +310,8 @@ Both Redis and MySQL suffer and show different results when using wrapper librar
 In our previous analysis, we demonstrated some differences between HDD and SSD performance, mainly for the sake of demonstrating MySQL's penalties while inserting on a HDD.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{5.png}
+    %\includegraphics[width=0.5\textwidth]{5.png}
+    \includesvg[width=0.5\textwidth]{svg/5}
     \caption{MySQL write performance between HDD and SSD.}
     \label{fig:mesh1}
 \end{figure}
@@ -321,7 +327,8 @@ Let's look into each of them.
 \subsubsection{MySQL Find}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{6.png}
+    %\includegraphics[width=0.5\textwidth]{6.png}
+    \includesvg[width=0.5\textwidth]{svg/6}
     \caption{MySQL read performance between HDD and SSD.}
     \label{fig:mesh1}
 \end{figure}
@@ -331,13 +338,16 @@ Part of the reason for this similar performance is because of how MySQL internal
 \subsubsection{Redis Insert and Find}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{7.png}
-        \caption{Redis write (top) and read (bottom) performance between HDD and SSD.}
+    %\includegraphics[width=0.5\textwidth]{7.png}
+    \includesvg[width=0.5\textwidth]{svg/7}
+        \caption{Redis write performance between HDD and SSD.}
     \label{fig:mesh1}
 \end{figure}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{8.png}
+    %\includegraphics[width=0.5\textwidth]{8.png}
+    \includesvg[width=0.5\textwidth]{svg/8}
+        \caption{Redis read performance between HDD and SSD.}
     \label{fig:mesh1}
 \end{figure}
 Redis's performance between a HDD and an SSD is irrelevant, as it is in-memory. Interestingly, the find operation yields a faster time for the HDD benchmark as opposed to the SSD benchmark. However, when run on Node.JS, this penalty goes away. It's possible that this is due to other running software or RAM restrictions on the test bench, rather than between HDD and SSD.
@@ -366,7 +376,7 @@ For future work, the authors of this paper would like to extend their study to o
 
 \section*{ACKNOWLEDGMENTS}
 
-The authors would like to thank Dr. Qing Cao, the professor of COSC560: Advanced Operating Systems, for teaching this course and instilling the authors with the tools needed to complete this study. The authors would also like to thank Haoran Niu, the graduate teaching assistant (GTA) for offering advice and guidance on the programming assignments.
+The authors would like to thank Dr. Qing Cao, the professor of COSC560: Advanced Software Systems, for teaching this course and instilling the authors with the tools needed to complete this study. The authors would also like to thank Haoran Niu, the graduate teaching assistant (GTA) for offering advice and guidance on the programming assignments.
 
 
 
