@@ -170,12 +170,12 @@ You should start  \texttt{redis-server} in a separate terminal session, as it sh
 The \texttt{bench.sh} shell script is the heart of how benchmarking is done in this project. It will check for the following 5 things:
 \begin{itemize}
     \item Whether  \texttt{c/gen\_input} was compiled (and compile it if it doesn't exist)
-    \item If node is a valid command
+    \item If \texttt{node} is a valid command
     \item If \texttt{redis-cli} is a valid command
     \item If \texttt{mysql/main.js} exists
     \item If \texttt{redis/main.js} exists
 \end{itemize}
-If it passes all 5 of these tests, it will begin running benchmarks and put the results in a new directory called \texttt{results} in the form of text files.The program takes 3 parameters but if none are specified, it uses the default benchmark configuration.
+If it passes all 5 of these tests, it will begin running benchmarks and put the results in a new directory called \texttt{results} in the form of text files. The program takes 3 parameters but if none are specified, it uses the default benchmark configuration.
 \begin{verbatim}
     UNIX> ./bench.sh case_num increment 
           repeat
@@ -217,7 +217,7 @@ What was tested:
 \texttt{bench.sh} doesn't export CSVs directly, but \texttt{gen\_csv.sh} is able to convert results into CSVs. These were imported into Microsoft Excel, which is where the graphs were generated and exported.
 
 
-For the command line applications, both mysql and redis-cli feature their own built in time functions. These are what were used to capture runtimes for both applications.
+For the command line applications, both \texttt{mysql} and \texttt{redis-cli} feature their own built in time functions. These are what were used to capture runtimes for both applications.
 \subsection{mysql}
 The \texttt{mysql} executable allows you to get the milliseconds of every query by passing \texttt{-vvv} (Triple Verbose) as a parameter when running the command.
 \begin{verbatim}
@@ -245,7 +245,8 @@ The first two lines are the output of the first call to \texttt{TIME}, while the
     UNIX> redis-cli < CMD.TXT | tr '\n' ' '
           | '{ a = $1 + ($2 / 1000000); b = 
           $3 + ($4 / 1000000); printf("%.09
-          f\n", b - a); }'0.032580137
+          f\n", b - a); }'
+    0.032580137
 \end{verbatim}
 
 
@@ -334,7 +335,7 @@ Let's look into each of them.
 \end{figure}
 This is an interesting case where HDD and SSD appear to have nearly equal performance. Even more interestingly, both the HDD and SSD have the same penalty at around the 23700th key being added into the query. This performance penalty also holds for when Node.JS is used instead, where it also has an interesting spike of duration between the 20000-50000 key range.
 
-Part of the reason for this similar performance is because of how MySQL internally stores its database on the file system. Cleverly, MySQL uses the B-Tree data structure. What makes this special is that, unlike other Binary Search trees (such as AVL and Red-Black), B-Trees are not optimized for being used in memory. They were constructed specifically for storage systems, such as discs. Since the internal structure for MySQL is a B-tree, optimal for discs, the nearly equal performance between both HDD and SSD in the find operation isn't a surprise.
+Part of the reason for this similar performance is because of how MySQL internally stores its database on the file system. Cleverly, MySQL uses the B-Tree data structure. What makes this special is that, unlike other Binary Search trees (such as AVL and Red-Black), B-Trees are not optimized for being used in memory. They were constructed specifically for storage systems, such as disks. Since the internal structure for MySQL is a B-tree, optimal for disks, the nearly equal performance between both HDD and SSD in the find operation isn't a surprise.
 \subsubsection{Redis Insert and Find}
 \begin{figure}[h]
     \centering
