@@ -117,7 +117,7 @@ async function main(argc, argv) {
 
 	start = new Date();
 
-	//Put some shit in.
+	//Run the query
 	await conn.query(query_str);
 	/*
 	for (let i = 0; i < pairs.length; i++) {
